@@ -28,4 +28,10 @@ split:
   train: 0.7
   val: 0.15
   test: 0.15
-
+random_forest:
+  class_weight: balanced
+  n_estimators: 100
+  max_depth: null
+  random_state: 42
+output:
+  model_path: "models/random_forest_model.joblib"
