@@ -1,2 +1,3 @@
 doc/*.bkp
 doc/~$*.docx
+**/__pycache__/
