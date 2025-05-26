@@ -34,4 +34,4 @@ random_forest:
   max_depth: null
   random_state: 42
 output:
-  model_path: "models/random_forest_model.joblib"
+  model_path: "cloud/random_forest_model.joblib"
