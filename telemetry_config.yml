@@ -1,0 +1,15 @@
+cloud_api:
+  base_url: http://localhost:8000
+  endpoints:
+    generate_advice: /generate_advice
+    health_check: /health
+    model_download: /load_local_model
+storage:
+  local_model_path: edge/received_model.joblib
+telemetry:
+  mode: share_with_dell
+  mode_options:
+  - unset
+  - share_with_dell
+  - local_only
+  - disable_telemetry
