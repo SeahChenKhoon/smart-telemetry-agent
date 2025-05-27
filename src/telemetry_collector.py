@@ -15,39 +15,21 @@ NORMAL = 0
 WARNING  = 1
 CRITICAL  = 2
 
-def download_model_from_cloud(model_url: str, save_path: str) -> bool:
-    """
-    Download a model file from a cloud API and save it locally.
-
-    Args:
-        model_url (str): URL to the cloud API endpoint providing the model.
-        save_path (str): Local file path to save the downloaded model.
-
-    Returns:
-        bool: True if download succeeds, False otherwise.
-    """
+def download_from_cloud(model_url: str, save_path: str, object_name: str) -> bool:
     try:
-        response = requests.post(model_url)
+        response = requests.post(model_url, verify=False)
         if response.ok:
-            _save_model_file(response.content, save_path)
-            _log_success(save_path)
+            with open(save_path, "wb") as f:
+                f.write(response.content)
+            print(f"[Telemetry] {object_name} downloaded and saved to: {save_path}")
             return True
-        _log_failure(response.status_code, response.text)
+        print(f"[Telemetry] Failed to download {object_name}: {response.status_code} - {response.text}")
     except requests.RequestException as e:
         print(f"[Telemetry] Request error: {e}")
     except Exception as e:
         print(f"[Telemetry] Unexpected error: {e}")
     return False
 
-def _save_model_file(content: bytes, path: str) -> None:
-    with open(path, "wb") as f:
-        f.write(content)
-
-def _log_success(path: str) -> None:
-    print(f"[Telemetry] Model downloaded and saved to: {path}")
-
-def _log_failure(status: int, message: str) -> None:
-    print(f"[Telemetry] Failed to download model: {status} - {message}")
 
 def show_intelligent_support_prompt() -> str:
     print("\nEnable Intelligent Support?")
@@ -82,7 +64,7 @@ def ensure_model_available(config: dict):
 
     if not os.path.exists(save_path):
         print(f"[Telemetry] Model not found locally. Downloading from {model_url}")
-        download_model_from_cloud(model_url, save_path)
+        download_from_cloud(model_url, save_path, "Model")
     else:
         print(f"[Telemetry] Local model already exists at {save_path}")
 
@@ -93,7 +75,7 @@ def ensure_rules_available(config: dict):
 
     if not os.path.exists(save_path):
         print(f"[Telemetry] Rules not found locally. Downloading from {rules_url}")
-        download_model_from_cloud(rules_url, save_path)
+        download_from_cloud(rules_url, save_path, "Rules")
     else:
         print(f"[Telemetry] Local rules already exists at {save_path}")
 
