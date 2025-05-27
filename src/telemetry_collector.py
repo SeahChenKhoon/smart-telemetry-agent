@@ -15,10 +15,6 @@ NORMAL = 0
 WARNING  = 1
 CRITICAL  = 2
 
-def load_config():
-    with open("telemetry_config.yml", "r") as f:
-        return yaml.safe_load(f)
-
 def download_model_from_cloud(model_url: str, save_path: str) -> bool:
     """
     Download a model file from a cloud API and save it locally.
@@ -89,6 +85,17 @@ def ensure_model_available(config: dict):
         download_model_from_cloud(model_url, save_path)
     else:
         print(f"[Telemetry] Local model already exists at {save_path}")
+
+def ensure_rules_available(config: dict):
+    base_url = config["cloud_api"]["base_url"]
+    rules_url = base_url + config["cloud_api"]["endpoints"]["rules_download"]
+    save_path = config["storage"]["local_rules_path"]
+
+    if not os.path.exists(save_path):
+        print(f"[Telemetry] Rules not found locally. Downloading from {rules_url}")
+        download_model_from_cloud(rules_url, save_path)
+    else:
+        print(f"[Telemetry] Local rules already exists at {save_path}")
 
 def update_telemetry_mode(config_path: str, new_mode: str):
     with open(config_path, "r") as f:
@@ -227,6 +234,7 @@ def handle_diagnostic_threshold_breach(
             if user_input == "y":
                 base_url = config["machine_api"]["base_url"]
                 endpoint = rule.get("api_service_name")
+                
                 if not endpoint:
                     print("[WARNING] API service name not specified in rule.")
                     return
@@ -288,6 +296,7 @@ def main() -> None:
     config = util.load_config(env_variables["telemetry_config_path"])
 
     ensure_model_available(config)
+    ensure_rules_available(config)
     show_telemetry_prompt_and_store(config)
 
     if config["telemetry"]["mode"] != "disable_telemetry":
