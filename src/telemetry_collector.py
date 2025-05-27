@@ -1,6 +1,9 @@
 import yaml
 import requests
 import os
+import joblib
+from sklearn.ensemble import RandomForestClassifier
+import pandas as pd
 
 def load_config():
     with open("telemetry_config.yml", "r") as f:
@@ -110,12 +113,62 @@ def show_telemetry_prompt_and_store(config: dict, config_path: str = "telemetry_
         print(f"[✔] Telemetry mode already set to '{current_mode}'. Skipping prompt.")
 
 
+def load_model(model_path:str):
+    if os.path.exists(model_path):
+        model = joblib.load(model_path)
+        print("[✓] Model loaded from:", model_path)
+        return model
+    else:
+        raise FileNotFoundError(f"[✗] Model file not found at: {model_path}")
+
+def load_diagnostics(model_url:str, item:int)-> pd.DataFrame:
+    response = requests.post(
+            model_url,
+            json={"item": item}
+        )
+    diagnostics_dict:dict = response.json()
+    # The diagnostics string
+    diag_str = diagnostics_dict["diagnostics"]
+
+    # Step 1: Split into key-value pairs
+    pairs = diag_str.strip().split()
+
+    # Step 2: Convert to dictionary
+    diag_dict = {}
+    for pair in pairs:
+        key, value = pair.split("=")
+        # Try converting to appropriate type
+        if value in {"True", "False"}:
+            value = value == "True"
+        else:
+            try:
+                value = float(value)
+                if value.is_integer():
+                    value = int(value)
+            except ValueError:
+                pass
+        diag_dict[key] = value
+
+    # Step 3: Convert to single-row DataFrame
+    diagnostics_df = pd.DataFrame([diag_dict])
+    return diagnostics_df
+
 def main() -> None:
     config = load_config()
     ensure_model_available(config)
     show_telemetry_prompt_and_store(config)
+    # Load local Model
+    model:RandomForestClassifier = load_model(config["storage"]["local_model_path"])
+    # Get diagnostics from Machine
+    base_url = config["machine_api"]["base_url"]
+    model_url = base_url + config["machine_api"]["endpoints"]["generate_system_parameters"]
+    item = 2
+    diagnostics_df = load_diagnostics(model_url, item)
+    
+    prediction = model.predict(diagnostics_df)
+    print(diagnostics_df["temperature"])
+    print(f"Predicted outcome: {int(prediction[0])}")
 
-        
 
 if __name__ == "__main__":
     main()
