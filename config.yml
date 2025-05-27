@@ -42,3 +42,4 @@ random_forest:
   random_state: 42
 output:
   model_path: "cloud/random_forest_model.joblib"
+  model_rules: "cloud/rules.json"
