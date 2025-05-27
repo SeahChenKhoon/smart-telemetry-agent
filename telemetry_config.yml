@@ -11,6 +11,7 @@ machine_api:
     generate_system_parameters: /generate_system_parameters
 storage:
   local_model_path: edge/received_model.joblib
+  local_rules_path: edge/received_rules.json  
 telemetry:
   mode: share_with_dell
   mode_options:
@@ -18,3 +19,4 @@ telemetry:
   - share_with_dell
   - local_only
   - disable_telemetry
+test_item: 1
