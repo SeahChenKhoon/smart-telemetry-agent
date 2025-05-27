@@ -10,6 +10,24 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report
 
+def print_df(df: pd.DataFrame) -> None:
+    """
+    Print a quick summary of the DataFrame including:
+    - the first few rows
+    - the shape (rows, columns)
+    - the data types of each column
+
+    Args:
+        df (pd.DataFrame): The DataFrame to display.
+
+    Returns:
+        None
+    """
+    print(df.head())
+    print(df.shape)
+    print(df.dtypes)
+
+
 def load_config()-> Dict[str, Any]:
     """
     Load configuration settings from a YAML file.
@@ -143,7 +161,7 @@ def encode_ordinal_features(df: pd.DataFrame, ordinal_map: Dict[str, List[str]])
     return df
 
 
-def data_preprocessing(df: pd.DataFrame, features) -> pd.DataFrame:
+def data_preprocessing(df: pd.DataFrame, features:dict) -> pd.DataFrame:
     """
     Clean the raw dataset by applying filtering and imputation steps.
 
@@ -159,26 +177,65 @@ def data_preprocessing(df: pd.DataFrame, features) -> pd.DataFrame:
     df = fill_missing_continuous(df, features["continuous"])
     return df
 
-
-def feature_engineering(df: pd.DataFrame, features) -> pd.DataFrame:
+def add_mocked_temperature_column(df: pd.DataFrame, features: dict) -> pd.DataFrame:
     """
-    Perform feature transformations and target generation.
+    Add a temperature column with random values between min and max temperature.
 
     Args:
-        df (pd.DataFrame): Preprocessed DataFrame.
-        features (dict): Feature configuration dictionary.
+        df (pd.DataFrame): DataFrame to modify.
+        features (dict): Dictionary containing temperature field configuration.
 
     Returns:
-        pd.DataFrame: DataFrame with engineered features.
+        pd.DataFrame: Updated DataFrame with mocked temperature column.
     """
+    for temp_cfg in features.get("temperature", []):
+        field = temp_cfg["field_name"]
+        min_val = temp_cfg["min_temperature"]
+        max_val = temp_cfg["max_temperature"]
+        df[field] = np.round(np.random.uniform(min_val, max_val, size=len(df)), 1)
+    return df
+
+
+def assign_temperature_labels(df: pd.DataFrame, temp_cfg: list[dict], target: dict) -> pd.DataFrame:
+    """
+    Assign a classification label (0, 1, or 2) to a target column based on temperature thresholds.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing the temperature column.
+        temp_cfg (list[dict]): List of temperature feature configs.
+        target (dict): Dict containing target field and threshold values.
+
+    Returns:
+        pd.DataFrame: DataFrame with an additional classification column.
+    """
+    temp_col = temp_cfg[0]["field_name"]
+    target_col = target["field_name"]
+    normal_threshold = target["normal"]
+    critical_threshold = target["critical"]
+
+    conditions = [
+        (df[temp_col] <= normal_threshold),
+        (df[temp_col] > normal_threshold) & (df[temp_col] <= critical_threshold),
+        (df[temp_col] > critical_threshold)
+    ]
+    choices = [0, 1, 2]
+
+    df[target_col] = np.select(conditions, choices)
+
+    return df
+
+
+def feature_engineering(df: pd.DataFrame, features: dict) -> pd.DataFrame:
+    df = add_mocked_temperature_column(df, features)
     df = one_hot_encode_columns(df, features["nominal"])
     df = encode_ordinal_features(df, features["ordinal"])
     
     # Mock a target column from task_status
-    df[features["target"]] = df["task_status"].apply(lambda x: True if x in ["waiting", "running"] else False)
+    df = assign_temperature_labels(df, features["temperature"], features["target"])
 
     df = remove_columns(df, features["columns_to_drop"])
     return df
+
 
 def split_dataset(
     df: pd.DataFrame,
@@ -273,21 +330,29 @@ def main() -> None:
     # Load Data
     dataset_url = config["dataset"]["url"]
     df = load_data(dataset_url)
+    print("\nOriginal Dataset from hugging face")
+    print_df(df)
 
     # Perform data Pre-processing & Feature Engineering
     features = config["features"]
     df = data_preprocessing(df, features)
     df = feature_engineering(df, features)
+    print("\nDataset after Feature Engineering")
+    print_df(df)
 
     # Split Dataset
-    X_train, y_train, *_ = prepare_train_val_test_sets(df, config["split"], features["target"])
+    X_train, y_train, X_val, y_val, *_ = prepare_train_val_test_sets(df, config["split"], features["target"]["field_name"])
 
-    # Perform Random Forest
+    # Perform Random Forest Training
     rf_params = config["random_forest"]
     model = RandomForestClassifier(**rf_params)
     model.fit(X_train, y_train.squeeze())
-    joblib.dump(model, config["output"]["model_path"])
     
+    # Perform Random Forest Predication on validation dataset
+    y_pred = model.predict(X_val)
+    print("\nClassification Report on Validation Dataset")
+    print(classification_report(y_val, y_pred))
+    joblib.dump(model, config["output"]["model_path"])
 
 if __name__ == "__main__":
     main()
