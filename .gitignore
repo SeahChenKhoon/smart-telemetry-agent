@@ -1,3 +1,4 @@
 doc/*.bkp
 doc/~$*.docx
 **/__pycache__/
+cloud/
