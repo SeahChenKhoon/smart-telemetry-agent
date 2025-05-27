@@ -3,3 +3,4 @@ doc/~$*.docx
 **/__pycache__/
 cloud/
 edge/
+.env
