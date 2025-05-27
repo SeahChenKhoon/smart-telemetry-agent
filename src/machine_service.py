@@ -72,3 +72,10 @@ def generate_system_parameters(item: DiagnosticsItem):
         "item": item.item,
         "diagnostics": diag_str
     }
+
+@app.post("/dim_screen_brightness")
+def dim_screen_brightness():
+    return {
+        "response": "Screen brightness dimmed"
+    }
+
