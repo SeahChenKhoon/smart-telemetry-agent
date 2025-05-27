@@ -1,9 +1,14 @@
 cloud_api:
-  base_url: http://localhost:8000
+  base_url: http://127.0.0.1:8000
   endpoints:
     generate_advice: /generate_advice
     health_check: /health
     model_download: /load_local_model
+machine_api:
+  base_url: http://127.0.0.2:8000
+  endpoints:
+    generate_advice: /generate_advice
+    generate_system_parameters: /generate_system_parameters
 storage:
   local_model_path: edge/received_model.joblib
 telemetry:
