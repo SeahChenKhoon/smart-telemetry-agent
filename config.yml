@@ -15,11 +15,18 @@ features:
     - num_executed_instructions
     - execution_time
     - energy_efficiency
+  temperature:
+    - field_name: "temperature"
+      min_temperature: 20
+      max_temperature: 120
   nominal:
     - task_type
   ordinal:
     task_priority: ["low", "medium", "high"]
-  target: "is_anomalous"
+  target:
+    field_name: "outcome"
+    normal: 60
+    critical: 75    
   columns_to_drop:
     - vm_id
     - timestamp
