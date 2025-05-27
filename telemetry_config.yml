@@ -2,7 +2,7 @@ cloud_api:
   base_url: http://127.0.0.1:8000
   endpoints:
     generate_advice: /generate_advice
-    health_check: /health
+    rules_download: /load_local_rules
     model_download: /load_local_model
 machine_api:
   base_url: http://127.0.0.2:8000
