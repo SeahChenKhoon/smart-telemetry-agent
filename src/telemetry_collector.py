@@ -16,6 +16,22 @@ WARNING  = 1
 CRITICAL  = 2
 
 def download_from_cloud(model_url: str, save_path: str, object_name: str) -> bool:
+    """
+    Download a file from a cloud API and save it locally.
+
+    Sends a POST request to the given model URL to retrieve binary content
+    (e.g., a model or rules file), then writes the content to a specified local path.
+    Logs success or failure messages.
+
+    Args:
+        model_url (str): URL of the cloud API endpoint to download from.
+        save_path (str): Local file path to save the downloaded content.
+        object_name (str): Descriptive name of the object being downloaded
+                           (used for logging only).
+
+    Returns:
+        bool: True if download succeeds and file is saved, False otherwise.
+    """    
     try:
         response = requests.post(model_url, verify=False)
         if response.ok:
@@ -31,27 +47,29 @@ def download_from_cloud(model_url: str, save_path: str, object_name: str) -> boo
     return False
 
 
-def show_intelligent_support_prompt() -> str:
-    print("\nEnable Intelligent Support?")
-    print("To provide proactive, AI-driven system optimization and support, this assistant collects")
-    print("diagnostic data like CPU usage, system temperature, and application performance.")
-    print("You control what is shared.\n")
+def show_intelligent_support_prompt(config: dict[str, Any]) -> str:
+    """
+    Display the intelligent support prompt and return the selected telemetry mode.
 
-    print("1. [ ] Share with Dell to receive full support and updates")
-    print("2. [ ] Keep data local to device only")
-    print("3. [ ] Do not collect telemetry at all\n")
+    This function prints an introduction message and a prompt for the user to choose
+    a telemetry sharing option. The options are loaded from the provided config dictionary.
+    It returns the corresponding telemetry mode string based on the user's input.
 
-    choice = input("Enter your choice (1-3): ").strip()
+    Args:
+        config (dict[str, Any]): Configuration dictionary containing the telemetry
+                                 prompt message and valid options.
 
-    options = {
-        "1": "share_with_dell",
-        "2": "local_only",
-        "3": "disable_telemetry"
-    }
-
+    Returns:
+        str: The selected telemetry mode (e.g., "share_with_dell", "local_only",
+             "disable_telemetry") or "invalid" if the input is not recognized.
+    """
+    print(config["telemetry"]["intro_message"])
+    choice = input(config["telemetry"]["choice_prompt"]).strip()
+    options = config["telemetry"]["options"]
     return options.get(choice, "invalid")
 
-def ensure_model_available(config: dict):
+
+def ensure_model_available(config: dict, refresh: bool = False):
     """
     Ensure the model file exists locally; download from cloud if not.
 
@@ -62,13 +80,28 @@ def ensure_model_available(config: dict):
     model_url = base_url + config["cloud_api"]["endpoints"]["model_download"]
     save_path = config["storage"]["local_model_path"]
 
-    if not os.path.exists(save_path):
+    if not os.path.exists(save_path) or refresh:
         print(f"[Telemetry] Model not found locally. Downloading from {model_url}")
         download_from_cloud(model_url, save_path, "Model")
     else:
         print(f"[Telemetry] Local model already exists at {save_path}")
 
+
 def ensure_rules_available(config: dict):
+    """
+    Ensure that the local telemetry rules file is available.
+
+    This function checks if the local rules file exists at the configured path.
+    If the file is missing, it attempts to download it from a cloud API endpoint.
+    Otherwise, it confirms that the file already exists.
+
+    Args:
+        config (Dict[str, Any]): Configuration dictionary containing cloud API base URL,
+                                 endpoints, and local storage path for rules.
+
+    Returns:
+        None
+    """    
     base_url = config["cloud_api"]["base_url"]
     rules_url = base_url + config["cloud_api"]["endpoints"]["rules_download"]
     save_path = config["storage"]["local_rules_path"]
@@ -79,7 +112,21 @@ def ensure_rules_available(config: dict):
     else:
         print(f"[Telemetry] Local rules already exists at {save_path}")
 
+
 def update_telemetry_mode(config_path: str, new_mode: str):
+    """
+    Update the telemetry mode in the given YAML configuration file.
+
+    This function reads the existing YAML config, modifies the telemetry mode,
+    and writes the updated configuration back to the file.
+
+    Args:
+        config_path (str): Path to the YAML configuration file.
+        new_mode (str): New telemetry mode to set (e.g., "share_with_dell", "local_only").
+
+    Returns:
+        None
+    """    
     with open(config_path, "r") as f:
         config = yaml.safe_load(f)
     config["telemetry"]["mode"] = new_mode
@@ -87,10 +134,10 @@ def update_telemetry_mode(config_path: str, new_mode: str):
     with open(config_path, "w") as f:
         yaml.safe_dump(config, f)
 
-    print(f"[✔] Telemetry mode set to: {new_mode}")
+    print(f"Telemetry mode set to: {new_mode}")
 
 
-def show_telemetry_prompt_and_store(config: dict, config_path: str = "telemetry_config.yml") -> None:
+def show_telemetry_prompt_and_store(config: dict, config_path: str) -> None:
     """
     Prompt the user to select telemetry mode if it has not been set,
     and update the configuration file with the selected mode.
@@ -102,7 +149,7 @@ def show_telemetry_prompt_and_store(config: dict, config_path: str = "telemetry_
     current_mode = config.get("telemetry", {}).get("mode", "unset")
 
     if current_mode == "unset":
-        mode = show_intelligent_support_prompt()
+        mode = show_intelligent_support_prompt(config)
 
         if mode in {"share_with_dell", "local_only", "disable_telemetry"}:
             update_telemetry_mode(config_path, mode)
@@ -131,7 +178,23 @@ def load_model(model_path: str) -> RandomForestClassifier:
     else:
         raise FileNotFoundError(f"Model file not found at: {model_path}")
 
+
 def load_diagnostics(model_url:str, item:int)-> pd.DataFrame:
+    """
+    Send a POST request to a model API endpoint to retrieve telemetry diagnostics
+    for a specified item and convert the response into a pandas DataFrame.
+
+    The API is expected to return a JSON object containing a "diagnostics" string,
+    which is a space-separated set of key=value pairs. These are parsed and
+    converted to appropriate Python types and then wrapped into a single-row DataFrame.
+
+    Args:
+        model_url (str): The full URL of the diagnostics API endpoint.
+        item (int): The test item ID or index to send in the POST request.
+
+    Returns:
+        pd.DataFrame: A single-row DataFrame containing structured diagnostic data.
+    """    
     response = requests.post(
             model_url,
             json={"item": item}
@@ -163,6 +226,7 @@ def load_diagnostics(model_url:str, item:int)-> pd.DataFrame:
     diagnostics_df = pd.DataFrame([diag_dict])
     return diagnostics_df
 
+
 def predict_system_outcome(
     config: Dict[str, Any],
     model: RandomForestClassifier,
@@ -188,6 +252,7 @@ def predict_system_outcome(
     print(f"Predicted outcome: {int(prediction[0])}")
 
     return int(prediction[0]), diagnostics_df
+
 
 def handle_diagnostic_threshold_breach(
     config: Dict[str, Any],
@@ -265,23 +330,31 @@ def evaluate_diagnostics_and_respond(
 
 def main() -> None:
     """
-    Main entry point for the telemetry evaluation system.
+    Main entry point for the intelligent support and telemetry evaluation system.
 
     This function:
-    - Loads environment variables and telemetry config
-    - Ensures the model is available
-    - Shows telemetry prompt and stores data
-    - Loads the local model and evaluates system diagnostics
-    - Triggers rule-based responses if the outcome is in WARNING state
+    - Loads environment variables and telemetry configuration from a YAML file.
+    - Ensures the local model and rule files are available or downloaded.
+    - Prompts the user to select a telemetry sharing mode and updates the config.
+    - If telemetry is not limited to local-only, it refreshes resources, loads the model,
+      performs system diagnostics, and evaluates them using predefined rules.
+
+    Returns:
+        None
     """
     env_variables = util.read_env()
-    config = util.load_config(env_variables["telemetry_config_path"])
+    config_path = env_variables["telemetry_config_path"]
+    config = util.load_config(config_path)
 
     ensure_model_available(config)
     ensure_rules_available(config)
-    show_telemetry_prompt_and_store(config)
+    show_telemetry_prompt_and_store(config, config_path)
 
-    if config["telemetry"]["mode"] != "disable_telemetry":
+    # No performance of telemetry if mode is "local_only"
+    if config["telemetry"]["mode"] != "local_only":
+        ensure_model_available(config, refresh=True)
+        ensure_rules_available(config, refresh=True)
+
         model: RandomForestClassifier = load_model(config["storage"]["local_model_path"])
         item = config["test_item"]
         outcome, diagnostics_df = predict_system_outcome(config, model, item)
