@@ -1,4 +1,5 @@
 doc/*.bkp
 doc/~$*.docx
 **/__pycache__/
-cloud/
+cloud/*.joblib
+edge/*.joblib
