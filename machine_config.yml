@@ -1,0 +1,39 @@
+Data:
+  - cpu_usage: 54.881350
+    memory_usage: 78.950861
+    network_traffic: 164.775973
+    power_consumption: 287.808986
+    num_executed_instructions: 7527.0
+    execution_time: 69.345575
+    energy_efficiency: 0.553589
+    task_priority: 1
+    temperature: 28.7
+    task_type_compute: false
+    task_type_io: false
+    task_type_network: true
+
+  - cpu_usage: 54.488318
+    memory_usage: 88.100960
+    network_traffic: 486.414307
+    power_consumption: 195.639954
+    num_executed_instructions: 5876.0
+    execution_time: 16.456670
+    energy_efficiency: 0.529511
+    task_priority: 2
+    temperature: 68.1
+    task_type_compute: true
+    task_type_io: false
+    task_type_network: false
+ 
+  - cpu_usage: 49.282088
+    memory_usage: 92.709195
+    network_traffic: 203.674847
+    power_consumption: 231.467903
+    num_executed_instructions: 5483.0
+    execution_time: 24.602549
+    energy_efficiency: 0.796277
+    task_priority: 1
+    temperature: 110.1
+    task_type_compute: false
+    task_type_io: true
+    task_type_network: false
