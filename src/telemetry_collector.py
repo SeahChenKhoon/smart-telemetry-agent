@@ -1,9 +1,15 @@
 import yaml
 import requests
 import os
+import json
 import joblib
 from sklearn.ensemble import RandomForestClassifier
+from typing import Any, Dict
 import pandas as pd
+
+NORMAL = 0
+WARNING  = 1
+CRITICAL  = 2
 
 def load_config():
     with open("telemetry_config.yml", "r") as f:
@@ -153,22 +159,76 @@ def load_diagnostics(model_url:str, item:int)-> pd.DataFrame:
     diagnostics_df = pd.DataFrame([diag_dict])
     return diagnostics_df
 
+def predict_system_outcome(
+    config: Dict[str, Any],
+    model: RandomForestClassifier,
+    item: int = 2
+) -> int:
+    """
+    Fetch system diagnostics from a remote machine and predict the outcome using a trained model.
+
+    Args:
+        config (Dict[str, Any]): Configuration dictionary containing API endpoints.
+        model (BaseEstimator): Trained machine learning model with a `.predict()` method.
+        item (int, optional): Item identifier to pass to the diagnostics API. Defaults to 2.
+
+    Returns:
+        int: Predicted outcome based on the diagnostics.
+    """
+    base_url = config["machine_api"]["base_url"]
+    endpoint = config["machine_api"]["endpoints"]["generate_system_parameters"]
+    model_url = base_url + endpoint
+
+    diagnostics_df = load_diagnostics(model_url, item)
+    prediction = model.predict(diagnostics_df)
+    print(f"Predicted outcome: {int(prediction[0])}")
+
+    return int(prediction[0]), diagnostics_df
+
+def evaluate_diagnostics_and_respond(
+    diagnostics_df: pd.DataFrame,
+    rules_path: str, 
+    config: Dict[str, Any]
+) -> None:
+    with open(rules_path, "r") as f:
+        rules: Dict[str, Dict[str, float]] = json.load(f)
+
+    for col, rule in rules.items():
+        if col not in diagnostics_df.columns:
+            continue
+
+        value = diagnostics_df[col].iloc[0]
+        if "max" in rule and value > rule["max"]:
+            message = rule.get("action", f"{col} exceeds threshold.")
+            print(f"[{col.upper()}] Value = {value} exceeds {rule['max']}")
+
+            if rule.get("requires_confirmation", False):
+                user_input = input(f"{message} (Y/N): ").strip().lower()
+                if user_input == "y":
+                    base_url = config["machine_api"]["base_url"]
+                    endpoint = rule.get("api_service_name")
+                    api_url = base_url + endpoint
+                    response = requests.post(api_url)
+                    diagnostics_dict:dict = response.json()
+                    message = diagnostics_dict['response']
+                    print(message)
+            else:
+                print(f"[NOTICE] {message}")
+
+
 def main() -> None:
     config = load_config()
     ensure_model_available(config)
     show_telemetry_prompt_and_store(config)
-    # Load local Model
-    model:RandomForestClassifier = load_model(config["storage"]["local_model_path"])
-    # Get diagnostics from Machine
-    base_url = config["machine_api"]["base_url"]
-    model_url = base_url + config["machine_api"]["endpoints"]["generate_system_parameters"]
-    item = 2
-    diagnostics_df = load_diagnostics(model_url, item)
-    
-    prediction = model.predict(diagnostics_df)
-    print(diagnostics_df["temperature"])
-    print(f"Predicted outcome: {int(prediction[0])}")
-
+    if config["telemetry"]["mode"] != "disable_telemetry":
+        # Load local Model
+        model:RandomForestClassifier = load_model(config["storage"]["local_model_path"])
+        item = config["test_item"]
+        outcome, diagnostics_df = predict_system_outcome(config, model, item)
+        if outcome == WARNING:
+            evaluate_diagnostics_and_respond(diagnostics_df, config["storage"]["local_rules_path"], config)
+        
+      
 
 if __name__ == "__main__":
     main()
