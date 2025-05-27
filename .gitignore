@@ -1,5 +1,18 @@
+# Ignore all files in doc/ by default
+doc/*
+
+# But allow only specific file types
+!doc/*.drawio
+!doc/*.png
+!doc/*.docx
+!doc/*.pptx
+
+# Still ignore unwanted files explicitly
 doc/*.bkp
 doc/~$*.docx
+doc/*.dtmp
+
+# General ignores
 **/__pycache__/
 cloud/
 edge/
