@@ -24,8 +24,6 @@ def print_df(df: pd.DataFrame) -> None:
         None
     """
     print(df.head())
-    print(df.shape)
-    print(df.dtypes)
 
 
 def load_config()-> Dict[str, Any]:
