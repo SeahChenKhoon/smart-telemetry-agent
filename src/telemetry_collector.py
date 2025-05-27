@@ -1,11 +1,15 @@
-import yaml
-import requests
 import os
 import json
+from os import path as Path
+
+import yaml
+import requests
 import joblib
+import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from typing import Any, Dict
-import pandas as pd
+
+import src.util as util
 
 NORMAL = 0
 WARNING  = 1
@@ -119,13 +123,24 @@ def show_telemetry_prompt_and_store(config: dict, config_path: str = "telemetry_
         print(f"[✔] Telemetry mode already set to '{current_mode}'. Skipping prompt.")
 
 
-def load_model(model_path:str):
+def load_model(model_path: str) -> RandomForestClassifier:
+    """
+    Load a machine learning model from the specified file path using joblib.
+
+    Args:
+        model_path (str): The file path to the saved model.
+
+    Returns:
+        RandomForestClassifier: RandomForestClassifier model.
+
+    Raises:
+        FileNotFoundError: If the model file does not exist at the specified path.
+    """
     if os.path.exists(model_path):
         model = joblib.load(model_path)
-        print("[✓] Model loaded from:", model_path)
         return model
     else:
-        raise FileNotFoundError(f"[✗] Model file not found at: {model_path}")
+        raise FileNotFoundError(f"Model file not found at: {model_path}")
 
 def load_diagnostics(model_url:str, item:int)-> pd.DataFrame:
     response = requests.post(
@@ -162,7 +177,7 @@ def load_diagnostics(model_url:str, item:int)-> pd.DataFrame:
 def predict_system_outcome(
     config: Dict[str, Any],
     model: RandomForestClassifier,
-    item: int = 2
+    item: int
 ) -> int:
     """
     Fetch system diagnostics from a remote machine and predict the outcome using a trained model.
@@ -185,50 +200,108 @@ def predict_system_outcome(
 
     return int(prediction[0]), diagnostics_df
 
+def handle_diagnostic_threshold_breach(
+    config: Dict[str, Any],
+    col: str,
+    value: float,
+    rule: Dict[str, Any]
+) -> None:
+    """
+    Handle a telemetry threshold breach based on rules, optionally prompting user and calling an API.
+
+    Args:
+        config (Dict[str, Any]): Configuration dictionary containing API base URL.
+        col (str): The name of the diagnostic column being evaluated.
+        value (float): The current value of the diagnostic metric.
+        rule (Dict[str, Any]): Rule dictionary containing threshold, action, and optional API info.
+
+    Returns:
+        None
+    """
+    if "max" in rule and value > rule["max"]:
+        message = rule.get("action", f"{col} exceeds threshold.")
+        print(f"[{col.upper()}] Value = {value} exceeds {rule['max']}")
+
+        if rule.get("requires_confirmation", False):
+            user_input = input(f"{message} (Y/N): ").strip().lower()
+            if user_input == "y":
+                base_url = config["machine_api"]["base_url"]
+                endpoint = rule.get("api_service_name")
+                if not endpoint:
+                    print("[WARNING] API service name not specified in rule.")
+                    return
+
+                api_url = base_url + endpoint
+                try:
+                    response = requests.post(api_url)
+                    diagnostics_dict: Dict[str, Any] = response.json()
+                    print(diagnostics_dict.get("response", "No response received from API."))
+                except requests.RequestException as e:
+                    print(f"[ERROR] Failed to call API: {e}")
+        else:
+            print(f"[NOTICE] {message}")
+
+
 def evaluate_diagnostics_and_respond(
     diagnostics_df: pd.DataFrame,
-    rules_path: str, 
+    rules_path: str,
     config: Dict[str, Any]
 ) -> None:
+    """
+    Evaluate diagnostics against defined rules and trigger responses if thresholds are breached.
+
+    This function loads diagnostic rules from a JSON file, compares them with current
+    diagnostics data, and invokes appropriate actions (e.g., user prompts or API calls)
+    by delegating to `handle_diagnostic_threshold_breach()`.
+
+    Args:
+        diagnostics_df (pd.DataFrame): DataFrame containing one row of telemetry values.
+        rules_path (str): Path to the JSON rules file defining max values, actions, etc.
+        config (Dict[str, Any]): Configuration dictionary, including machine API details.
+
+    Returns:
+        None
+    """
     with open(rules_path, "r") as f:
-        rules: Dict[str, Dict[str, float]] = json.load(f)
+        rules: Dict[str, Dict[str, Any]] = json.load(f)
 
     for col, rule in rules.items():
         if col not in diagnostics_df.columns:
             continue
 
         value = diagnostics_df[col].iloc[0]
-        if "max" in rule and value > rule["max"]:
-            message = rule.get("action", f"{col} exceeds threshold.")
-            print(f"[{col.upper()}] Value = {value} exceeds {rule['max']}")
-
-            if rule.get("requires_confirmation", False):
-                user_input = input(f"{message} (Y/N): ").strip().lower()
-                if user_input == "y":
-                    base_url = config["machine_api"]["base_url"]
-                    endpoint = rule.get("api_service_name")
-                    api_url = base_url + endpoint
-                    response = requests.post(api_url)
-                    diagnostics_dict:dict = response.json()
-                    message = diagnostics_dict['response']
-                    print(message)
-            else:
-                print(f"[NOTICE] {message}")
+        handle_diagnostic_threshold_breach(config, col, value, rule)
 
 
 def main() -> None:
-    config = load_config()
+    """
+    Main entry point for the telemetry evaluation system.
+
+    This function:
+    - Loads environment variables and telemetry config
+    - Ensures the model is available
+    - Shows telemetry prompt and stores data
+    - Loads the local model and evaluates system diagnostics
+    - Triggers rule-based responses if the outcome is in WARNING state
+    """
+    env_variables = util.read_env()
+    config = util.load_config(env_variables["telemetry_config_path"])
+
     ensure_model_available(config)
     show_telemetry_prompt_and_store(config)
+
     if config["telemetry"]["mode"] != "disable_telemetry":
-        # Load local Model
-        model:RandomForestClassifier = load_model(config["storage"]["local_model_path"])
+        model: RandomForestClassifier = load_model(config["storage"]["local_model_path"])
         item = config["test_item"]
         outcome, diagnostics_df = predict_system_outcome(config, model, item)
-        if outcome == WARNING:
-            evaluate_diagnostics_and_respond(diagnostics_df, config["storage"]["local_rules_path"], config)
-        
-      
 
+        if outcome == WARNING:
+            evaluate_diagnostics_and_respond(
+                diagnostics_df,
+                config["storage"]["local_rules_path"],
+                config
+            )
+        
+     
 if __name__ == "__main__":
     main()
