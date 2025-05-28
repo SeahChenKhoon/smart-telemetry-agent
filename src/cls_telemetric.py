@@ -35,7 +35,7 @@ class cls_Rule(BaseModel):
         Returns:
             None
         """
-        print(f"[{self.col.upper()}] Value = {value} exceeds threshold = {self.max}")
+        print(f"[{self.col.upper()}] Value = {value} greater equal {self.min} and less than {self.max}")
         print(f"[ACTION] {self.action}")
 
         if self.requires_confirmation:
