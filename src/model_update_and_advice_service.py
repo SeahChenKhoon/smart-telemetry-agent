@@ -2,14 +2,15 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Dict, Any
+from pathlib import Path
 import json
-
+import ast
 import yaml
 import os
 
 from src.cls_env import cls_Env 
 from src.cls_LLM import cls_LLM
-from src.cls_telemetric import cls_SystemDiagnostics
+
 import src.util as util
 
 cls_env = cls_Env()
@@ -25,6 +26,7 @@ class DiagnosticInput(BaseModel):
 
 class DiagnosticsItem(BaseModel):
     item: int
+
 
 @app.post("/load_local_model")
 def load_local_model():
@@ -64,7 +66,6 @@ def escalate_issue(diagnostic: DiagnosticInput):
         "insert rules JSON here": rules
     }
     output = cls_llm.execute_llm_prompt(config["llm_prompt"], llm_parameter)
-    print(output)
     return {
         "response": output
     }
@@ -75,4 +76,10 @@ def generate_advice():
         "advice": "No specific advice. Please provide a more detailed issue."
     }
 
-        
+@app.post("/log_error")
+def log_error(error_log_str: DiagnosticInput):
+    error_log_dict = json.loads(error_log_str.message)
+    cls_error_log = util.cls_ErrorLog(**error_log_dict)
+    error_log_path=config["output"]["log_err_path"]
+    with open(error_log_path, "a") as f:
+        f.write(cls_error_log.model_dump_json() + "\n")
