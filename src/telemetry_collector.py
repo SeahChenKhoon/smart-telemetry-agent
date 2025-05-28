@@ -331,6 +331,15 @@ def handle_matched_rules(
 
 
 def main() -> None:
+    """
+    Entry point for the telemetry diagnostics application.
+
+    - Loads environment variables and config.
+    - Prompts user to configure telemetry sharing if unset.
+    - Downloads model and rules if telemetry is shared.
+    - Loads model, fetches telemetry, predicts outcome.
+    - Handles rule-based actions or escalation if required.
+    """    
     env_variables = util.read_env()
     config_path = env_variables["telemetry_config_path"]
     config = util.load_config(config_path)
