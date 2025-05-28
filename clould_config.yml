@@ -1,0 +1,18 @@
+llm_prompt: 'You are an intelligent assistant.
+
+  Based on the telemetry data and rules, determine the appropriate action.
+
+  Only respond with the result in the following exact format:
+  <action>|<requires_confirmation>|<api_service_name>
+
+  Do not include any explanation, preamble, or extra text.
+
+  Telemetry Data:
+  {insert telemetry string here}
+
+  Rules:
+  {insert rules JSON here}'
+output:
+  model_path: "cloud/random_forest_model.joblib"
+  rules_path: "cloud/rules.json"
+  clould_path: "cloud/cloud_rules.json"
