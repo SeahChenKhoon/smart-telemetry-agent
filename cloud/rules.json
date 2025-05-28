@@ -1,0 +1,18 @@
+{
+  "temperature_warning_1": {
+    "col": "temperature",
+    "min": 60.0,
+    "max": 69.9,
+    "action": "Moderate temperature detected. Would you like me to reduce the screen brightness to help? ",
+    "requires_confirmation": true,
+    "api_service_name": "/reduce_screen_brightness"
+  },
+  "temperature_warning_2": {
+    "col": "temperature",
+    "min": 70.0,
+    "max": 75.0,
+    "action": "Moderate temperature detected. Shall I increase the fan speed?",
+    "requires_confirmation": true,
+    "api_service_name": "/increase_fan_speed"
+  }
+}
