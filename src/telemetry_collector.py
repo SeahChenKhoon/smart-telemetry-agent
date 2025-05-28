@@ -179,18 +179,7 @@ def parse_telemetry_string(telemetry_str: str) -> Dict[str, Union[float, bool]]:
     return telemetry_dict
 
 
-def fetch_telemetry_from_machine(model_url: str, item: int) -> Dict[str, float]:
-    """
-    Fetch diagnostics data from the machine API and convert it into a dictionary
-    of telemetry metrics with float values.
-
-    Args:
-        model_url (str): The API endpoint to fetch diagnostics data from.
-        item (int): Index of the diagnostics item to retrieve.
-
-    Returns:
-        Dict[str, float]: Parsed telemetry data with keys and float values.
-    """
+def fetch_telemetry_from_machine(model_url: str, item: int):
     response = requests.post(
         model_url,
         json={"item": item}
@@ -200,7 +189,7 @@ def fetch_telemetry_from_machine(model_url: str, item: int) -> Dict[str, float]:
     telemetry_str = response_dict["diagnostics"]
     telemetry_dict: Dict[str, float] = parse_telemetry_string(telemetry_str)
 
-    return telemetry_dict    
+    return telemetry_dict, telemetry_str
 
 def predict_telemetry_outcome(
     diagnostics_df: pd.DataFrame,
@@ -219,10 +208,10 @@ def retrieve_telemetry_from_machine(
     base_url = config["machine_api"]["base_url"]
     endpoint = config["machine_api"]["endpoints"]["generate_system_parameters"]
     api_url = base_url + endpoint
-    telemetry_dict = fetch_telemetry_from_machine(api_url, item)
+    telemetry_dict, telemetry_str = fetch_telemetry_from_machine(api_url, item)
     telemetry_df = convert_diagnostic_to_df(telemetry_dict)
 
-    return telemetry_df, telemetry_dict
+    return telemetry_df, telemetry_dict, telemetry_str
 
 
 def machine_nofitication(    
@@ -276,6 +265,7 @@ def handle_diagnostic_threshold_breach(
         message = rule.get("action", f"{col} exceeds threshold.")
         machine_nofitication(config, col, value, rule)        
  
+
 def match_rules(rules: List[cls_Rule.cls_Rule], telemetry_dict: Dict[str, float]) -> List[cls_Rule.cls_Rule]:
     """
     Evaluate a list of rules against telemetry data and return all matching rules.
@@ -308,21 +298,7 @@ def evaluate_diagnostics(
 
 
 
-def raise_issue_and_respond(diagnostics_str: str, config: Dict[str, Any]) -> Optional[str]:
-    """
-    Sends a diagnostics message to the escalation API endpoint and returns the response.
-
-    This function posts the provided diagnostics string to the configured escalation API.
-    If the request is successful, it extracts and returns the 'response' field from the JSON response.
-    If the endpoint is missing or the request fails, it logs a warning or error and returns None.
-
-    Args:
-        diagnostics_str (str): The diagnostics message to be sent in the request body.
-        config (Dict[str, Any]): Configuration dictionary containing the API base URL and endpoints.
-
-    Returns:
-        Optional[str]: The response string from the API if successful, otherwise None.
-    """
+def raise_issue_and_get_adviced(telemetry_str: str, config: Dict[str, Any]):
     base_url = config["cloud_api"]["base_url"]
     endpoint = config["cloud_api"]["endpoints"]["escalate_issue"]
     
@@ -333,19 +309,40 @@ def raise_issue_and_respond(diagnostics_str: str, config: Dict[str, Any]) -> Opt
     api_url = base_url + endpoint
     response = requests.post(
         api_url,
-        json={"message": diagnostics_str}
+        json={"message": telemetry_str},
+        verify=False
     )
 
     if response.ok:
         output_value = response.json().get("response")
-        print(output_value)        
-        # machine_nofitication(config, col, value, rule)        
-
-        return output_value
+        mapped_rules: List[cls_Rule.cls_Rule] = cls_Rule.cls_Rule.parse_rule_string_to_list(output_value)
+        return mapped_rules
     else:
         print("Request failed:", response.status_code, response.text)
         return None
-    
+
+def handle_matched_rules(
+    matched_rules: List[cls_Rule.cls_Rule],
+    telemetry_dict: Dict[str, float],
+    config: Dict[str, Any]
+) -> None:
+    """
+    Handle all matched rules by invoking each rule's breach handler.
+
+    Args:
+        matched_rules (List[cls_Rule]): List of rule objects that matched the telemetry conditions.
+        telemetry_dict (Dict[str, float]): Telemetry data with key-value pairs.
+        config (Dict[str, Any]): Configuration dictionary.
+
+    Returns:
+        None
+    """
+    for rule in matched_rules:
+        col = rule.col
+        value = telemetry_dict.get(col)
+        if value is not None:
+            rule.handle_breach(config, value)
+
 
 def main() -> None:
     env_variables = util.read_env()
@@ -363,21 +360,18 @@ def main() -> None:
         # Load Model
         model: RandomForestClassifier = load_model(config["storage"]["local_model_path"])
         item = config["test_item"]
-        telemetry_df, telemetry_dict = retrieve_telemetry_from_machine(config, item)
+        telemetry_df, telemetry_dict, telemetry_str = retrieve_telemetry_from_machine(config, item)
         telemetry_outcome = predict_telemetry_outcome(telemetry_df, model)
         if telemetry_outcome == WARNING:
             matched_rule=evaluate_diagnostics(
                 telemetry_dict,
                 config
             )
-
-            for rule in matched_rule:
-                col = rule.col
-                value = telemetry_dict[col]
-                rule.handle_breach(config, value)
+            handle_matched_rules(matched_rule,telemetry_dict,config)
         elif telemetry_outcome == CRITICAL:
-            output = raise_issue_and_respond(telemetry_dict, config)
-            print(output)
+            matched_rule = raise_issue_and_get_adviced(telemetry_str, config)
+            handle_matched_rules(matched_rule,telemetry_dict,config)
+
             
 
      
