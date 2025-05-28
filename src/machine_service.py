@@ -6,6 +6,8 @@ import pandas as pd
 
 import yaml
 
+import src.util as util
+
 app = FastAPI()
 
 class DiagnosticsItem(BaseModel):
@@ -42,7 +44,18 @@ def load_config()-> Dict[str, Any]:
 
 @app.post("/generate_system_parameters")
 def generate_system_parameters(item: DiagnosticsItem):
-    config = load_config()
+    """
+    Generate system parameters for the given item index.
+
+    Args:
+        item (DiagnosticsItem): The index of the telemetry record to retrieve.
+
+    Returns:
+        Dict[str, Any]: Dictionary with item index and diagnostics string.
+    """    
+    env_variables = util.read_env()
+    config_path = env_variables["machine_config_path"]
+    config = util.load_config(config_path)
     df = pd.DataFrame(config["Data"])
 
     diagnostics: List[DiagnosticOutput] = [
@@ -61,25 +74,49 @@ def generate_system_parameters(item: DiagnosticsItem):
     }
 
 @app.post("/reduce_screen_brightness")
-def reduce_screen_brightness():
+def reduce_screen_brightness() -> Dict[str, str]:
+    """
+    Reduce screen brightness on the device.
+
+    Returns:
+        Dict[str, str]: A response message.
+    """    
     return {
         "response": "Screen brightness reduced"
     }
 
 @app.post("/increase_fan_speed")
-def increase_fan_speed():
+def increase_fan_speed() -> Dict[str, str]:
+    """
+    Increase the device's fan speed to help manage temperature.
+
+    Returns:
+        Dict[str, str]: A response message indicating the action taken.
+    """    
     return {
         "response": "Fan Speed increased"
     }
 
 @app.post("/enable_cpu_cooling")
-def enable_cpu_cooling():
+def enable_cpu_cooling() -> Dict[str, str]:
+    """
+    Enable additional CPU cooling mechanisms to prevent overheating.
+
+    Returns:
+        Dict[str, str]: A response message indicating the action taken.
+    """    
     return {
         "response": "Additional cooling enabled"
     }
 
-@app.post("/enable_cpu_cooling")
-def enable_cpu_cooling():
+@app.post("/emergency_shutdown")
+def emergency_shutdown()-> Dict[str, str]:
+    """
+    Initiate an emergency system shutdown to protect hardware from critical conditions.
+
+    Returns:
+        Dict[str, str]: A response message confirming shutdown initiation.
+    """    
     return {
         "response": "Emergency shutdown completed"
     }
