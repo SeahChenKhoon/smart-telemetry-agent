@@ -60,9 +60,26 @@ def generate_system_parameters(item: DiagnosticsItem):
         "diagnostics": diag_str
     }
 
-@app.post("/dim_screen_brightness")
-def dim_screen_brightness():
+@app.post("/reduce_screen_brightness")
+def reduce_screen_brightness():
     return {
-        "response": "Screen brightness dimmed"
+        "response": "Screen brightness reduced"
     }
 
+@app.post("/increase_fan_speed")
+def increase_fan_speed():
+    return {
+        "response": "Fan Speed increased"
+    }
+
+@app.post("/enable_cpu_cooling")
+def enable_cpu_cooling():
+    return {
+        "response": "Additional cooling enabled"
+    }
+
+@app.post("/enable_cpu_cooling")
+def enable_cpu_cooling():
+    return {
+        "response": "Emergency shutdown completed"
+    }
