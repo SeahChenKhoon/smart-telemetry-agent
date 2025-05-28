@@ -37,3 +37,16 @@ Data:
     task_type_compute: false
     task_type_io: true
     task_type_network: false
+
+  - cpu_usage: 49.282088
+    memory_usage: 92.709195
+    network_traffic: 203.674847
+    power_consumption: 231.467903
+    num_executed_instructions: 5483.0
+    execution_time: 24.602549
+    energy_efficiency: 0.796277
+    task_priority: 1
+    temperature: 69.9
+    task_type_compute: false
+    task_type_io: true
+    task_type_network: false
