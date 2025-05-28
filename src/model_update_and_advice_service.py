@@ -10,7 +10,6 @@ import os
 
 from src.cls_env import cls_Env 
 from src.cls_LLM import cls_LLM
-
 import src.util as util
 
 cls_env = cls_Env()
@@ -29,7 +28,14 @@ class DiagnosticsItem(BaseModel):
 
 
 @app.post("/load_local_model")
-def load_local_model():
+def load_local_model() -> Dict[str, str]:
+    """
+    Endpoint to download the locally stored machine learning model file.
+
+    Returns:
+        Dict[str, Any] or FileResponse: The model file as a binary stream if it exists,
+        otherwise an error message.
+    """    
     model_path = config["output"]["model_path"]
 
     if not os.path.exists(model_path):
@@ -42,7 +48,14 @@ def load_local_model():
     )
     
 @app.post("/load_local_rules")
-def load_local_rules():
+def load_local_rules() -> Dict[str, str]:
+    """
+    Endpoint to download the locally stored rule set file.
+
+    Returns:
+        Dict[str, Any] or FileResponse: The rules file if it exists,
+        otherwise an error message.
+    """    
     rules_path = config["output"]["rules_path"]
 
     if not os.path.exists(rules_path):
@@ -55,7 +68,16 @@ def load_local_rules():
     )
     
 @app.post("/escalate_issue")
-def escalate_issue(diagnostic: DiagnosticInput):
+def escalate_issue(diagnostic: DiagnosticInput)  -> Dict[str, str]:
+    """
+    Uses telemetry and rules to generate a recommended action via LLM prompt.
+
+    Args:
+        diagnostic (DiagnosticInput): Telemetry data string to be processed.
+
+    Returns:
+        Dict[str, str]: Response from LLM after evaluating rules against telemetry.
+    """    
     rules_path = config["output"]["clould_path"]
 
     with open(rules_path, "r") as f:
@@ -71,13 +93,28 @@ def escalate_issue(diagnostic: DiagnosticInput):
     }
 
 @app.post("/generate_advice")
-def generate_advice():
+def generate_advice() -> Dict[str, str]:
+    """
+    Return a placeholder generic advice message.
+
+    Returns:
+        Dict[str, str]: Default message requesting more specific input.
+    """    
     return {
         "advice": "No specific advice. Please provide a more detailed issue."
     }
 
 @app.post("/log_error")
-def log_error(error_log_str: DiagnosticInput):
+def log_error(error_log_str: DiagnosticInput) -> None:
+    """
+    Append a structured error log entry to the configured error log path.
+
+    Args:
+        error_log_str (DiagnosticInput): JSON string of the error log object.
+
+    Returns:
+        None
+    """    
     error_log_dict = json.loads(error_log_str.message)
     cls_error_log = util.cls_ErrorLog(**error_log_dict)
     error_log_path=config["output"]["log_err_path"]
