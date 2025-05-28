@@ -7,9 +7,10 @@ import requests
 import joblib
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List, Tuple, Union
 
 import src.util as util
+import src.cls_telemetric as cls_Rule
 
 NORMAL = 0
 WARNING  = 1
@@ -70,25 +71,12 @@ def show_intelligent_support_prompt(config: dict[str, Any]) -> str:
 
 
 def ensure_file_available(config: Dict, endpoint_key: str, storage_key: str, object_name: str) -> None:
-    """
-    Ensure that a specific file (model or rules) is available locally.
-    Downloads the file from the cloud if it's not already present.
-
-    Args:
-        config (Dict): Configuration dictionary containing cloud API and storage paths.
-        endpoint_key (str): Key to locate the correct download endpoint in config["cloud_api"]["endpoints"].
-        storage_key (str): Key to locate the correct local storage path in config["storage"].
-        object_name (str): Name of the object for logging purposes.
-    """
     base_url = config["cloud_api"]["base_url"]
     download_url = base_url + config["cloud_api"]["endpoints"][endpoint_key]
     save_path = config["storage"][storage_key]
 
-    if not os.path.exists(save_path):
-        print(f"[Telemetry] {object_name} not found locally. Downloading from {download_url}")
-        download_from_cloud(download_url, save_path, object_name)
-    else:
-        print(f"[Telemetry] Local {object_name.lower()} already exists at {save_path}")
+    print(f"Downloading/Updating {object_name} from {download_url}")
+    download_from_cloud(download_url, save_path, object_name)
 
 
 def update_telemetry_mode(config_path: str, new_mode: str):
@@ -156,68 +144,114 @@ def load_model(model_path: str) -> RandomForestClassifier:
     else:
         raise FileNotFoundError(f"Model file not found at: {model_path}")
 
-def convert_diagnostic_to_df(diag_str)->pd.DataFrame:
-    # Step 1: Split into key-value pairs
-    pairs = diag_str.strip().split()
-
-    # Step 2: Convert to dictionary
-    diag_dict = {}
-    for pair in pairs:
-        key, value = pair.split("=")
-        # Try converting to appropriate type
-        if value in {"True", "False"}:
-            value = value == "True"
-        else:
-            try:
-                value = float(value)
-                if value.is_integer():
-                    value = int(value)
-            except ValueError:
-                pass
-        diag_dict[key] = value
-
-    # Step 3: Convert to single-row DataFrame
-    diagnostics_df = pd.DataFrame([diag_dict])
-    return diagnostics_df
-
-def load_diagnostics(model_url:str, item:int)-> str:
-    response = requests.post(
-            model_url,
-            json={"item": item}
-        )
-    diagnostics_dict:dict = response.json()
-    # The diagnostics string
-    diag_str = diagnostics_dict["diagnostics"]
-
-    return diag_str
-
-
-def predict_system_outcome(
-    config: Dict[str, Any],
-    model: RandomForestClassifier,
-    item: int
-) -> int:
+def convert_diagnostic_to_df(diagnostics: Dict[str, float]) -> pd.DataFrame:
     """
-    Fetch system diagnostics from a remote machine and predict the outcome using a trained model.
+    Convert a dictionary of telemetry diagnostics into a single-row DataFrame
+    suitable for model prediction.
 
     Args:
-        config (Dict[str, Any]): Configuration dictionary containing API endpoints.
-        model (BaseEstimator): Trained machine learning model with a `.predict()` method.
-        item (int, optional): Item identifier to pass to the diagnostics API. Defaults to 2.
+        diagnostics (Dict[str, float]): The telemetry data as key-value pairs.
 
     Returns:
-        int: Predicted outcome based on the diagnostics.
+        pd.DataFrame: A DataFrame with one row representing the diagnostics.
     """
-    base_url = config["machine_api"]["base_url"]
-    endpoint = config["machine_api"]["endpoints"]["generate_system_parameters"]
-    model_url = base_url + endpoint
+    return pd.DataFrame([diagnostics])
 
-    diagnostics_str = load_diagnostics(model_url, item)
-    diagnostics_df = convert_diagnostic_to_df(diagnostics_str)
+def parse_telemetry_string(telemetry_str: str) -> Dict[str, Union[float, bool]]:
+    """
+    Parse a telemetry string into a dictionary with appropriate types.
+
+    Args:
+        telemetry_str (str): A space-separated string of key=value pairs.
+
+    Returns:
+        Dict[str, Union[float, bool]]: Parsed telemetry data with float or boolean values.
+    """
+    telemetry_dict: Dict[str, Union[float, bool]] = {}
+
+    for pair in telemetry_str.split():
+        key, value = pair.split("=")
+        if value.lower() in {"true", "false"}:
+            telemetry_dict[key] = value.lower() == "true"
+        else:
+            telemetry_dict[key] = float(value)
+
+    return telemetry_dict
+
+
+def fetch_telemetry_from_machine(model_url: str, item: int) -> Dict[str, float]:
+    """
+    Fetch diagnostics data from the machine API and convert it into a dictionary
+    of telemetry metrics with float values.
+
+    Args:
+        model_url (str): The API endpoint to fetch diagnostics data from.
+        item (int): Index of the diagnostics item to retrieve.
+
+    Returns:
+        Dict[str, float]: Parsed telemetry data with keys and float values.
+    """
+    response = requests.post(
+        model_url,
+        json={"item": item}
+    )
+    response_dict = response.json()
+    # Convert the diagnostics string to a dictionary of floats
+    telemetry_str = response_dict["diagnostics"]
+    telemetry_dict: Dict[str, float] = parse_telemetry_string(telemetry_str)
+
+    return telemetry_dict    
+
+def predict_telemetry_outcome(
+    diagnostics_df: pd.DataFrame,
+    model: RandomForestClassifier
+) -> int:
     prediction = model.predict(diagnostics_df)
+
     print(f"Predicted outcome: {int(prediction[0])}")
 
-    return int(prediction[0]), diagnostics_df, diagnostics_str
+    return int(prediction[0])
+
+def retrieve_telemetry_from_machine(
+    config: Dict[str, Any],
+    item: int
+) -> Tuple[int, pd.DataFrame, Dict[str, float]]:
+    base_url = config["machine_api"]["base_url"]
+    endpoint = config["machine_api"]["endpoints"]["generate_system_parameters"]
+    api_url = base_url + endpoint
+    telemetry_dict = fetch_telemetry_from_machine(api_url, item)
+    telemetry_df = convert_diagnostic_to_df(telemetry_dict)
+
+    return telemetry_df, telemetry_dict
+
+
+def machine_nofitication(    
+    config: Dict[str, Any],
+    col: str,
+    value: float,
+    rule: Dict[str, Any]
+)->None:
+    message = rule.get("action", f"{col} exceeds threshold.") 
+    print(f"[{col.upper()}] Value = {value} exceeds {rule['max']}")
+    if rule.get("requires_confirmation", False):
+        user_input = input(f"{message} (Y/N): ").strip().lower()
+        if user_input == "y":
+            base_url = config["machine_api"]["base_url"]
+            endpoint = rule.get("api_service_name")
+            
+            if not endpoint:
+                print("[WARNING] API service name not specified in rule.")
+                return
+
+            api_url = base_url + endpoint
+            try:
+                response = requests.post(api_url)
+                diagnostics_dict: Dict[str, Any] = response.json()
+                print(diagnostics_dict.get("response", "No response received from API."))
+            except requests.RequestException as e:
+                print(f"[ERROR] Failed to call API: {e}")
+    else:
+        print(f"[NOTICE] {message}")                
 
 
 def handle_diagnostic_threshold_breach(
@@ -240,44 +274,39 @@ def handle_diagnostic_threshold_breach(
     """
     if "max" in rule and value > rule["max"]:
         message = rule.get("action", f"{col} exceeds threshold.")
-        print(f"[{col.upper()}] Value = {value} exceeds {rule['max']}")
+        machine_nofitication(config, col, value, rule)        
+ 
+def match_rules(rules: List[cls_Rule.cls_Rule], telemetry_dict: Dict[str, float]) -> List[cls_Rule.cls_Rule]:
+    """
+    Evaluate a list of rules against telemetry data and return all matching rules.
 
-        if rule.get("requires_confirmation", False):
-            user_input = input(f"{message} (Y/N): ").strip().lower()
-            if user_input == "y":
-                base_url = config["machine_api"]["base_url"]
-                endpoint = rule.get("api_service_name")
-                
-                if not endpoint:
-                    print("[WARNING] API service name not specified in rule.")
-                    return
+    A rule matches if the telemetry dictionary contains the column specified by the rule,
+    and the corresponding value falls within the rule's [min, max) range.
 
-                api_url = base_url + endpoint
-                try:
-                    response = requests.post(api_url)
-                    diagnostics_dict: Dict[str, Any] = response.json()
-                    print(diagnostics_dict.get("response", "No response received from API."))
-                except requests.RequestException as e:
-                    print(f"[ERROR] Failed to call API: {e}")
-        else:
-            print(f"[NOTICE] {message}")
+    Args:
+        rules (List[cls_Rule]): A list of rule objects to evaluate.
+        telemetry_dict (Dict[str, float]): A dictionary of telemetry values keyed by attribute name.
 
+    Returns:
+        List[cls_Rule]: A list of rule objects that match the telemetry conditions.
+    """
+    return [
+        rule for rule in rules
+        if rule.col in telemetry_dict and rule.min <= telemetry_dict[rule.col] < rule.max
+    ]
 
-def evaluate_diagnostics_and_respond(
-    diagnostics_df: pd.DataFrame,
+def evaluate_diagnostics(
+    telemetry_dict: Dict[str, float],
     config: Dict[str, Any]
-) -> None:
-
+) -> List[cls_Rule.cls_Rule]:
+    # Read Rules Table
     with open(config["storage"]["local_rules_path"], "r") as f:
-        rules: Dict[str, Dict[str, Any]] = json.load(f)
+        raw_rules : Dict[str, Dict[str, Any]] = json.load(f)
+        rules_list: List[cls_Rule.cls_Rule] = [cls_Rule.cls_Rule(**v) for v in raw_rules.values()]
+    matched_rule = match_rules(rules_list, telemetry_dict)
+    return matched_rule
 
-    for col, rule in rules.items():
-        if col not in diagnostics_df.columns:
-            continue
 
-        value = diagnostics_df[col].iloc[0]
-        handle_diagnostic_threshold_breach(config, col, value, rule)
-    return None
 
 def raise_issue_and_respond(diagnostics_str: str, config: Dict[str, Any]) -> Optional[str]:
     """
@@ -309,6 +338,9 @@ def raise_issue_and_respond(diagnostics_str: str, config: Dict[str, Any]) -> Opt
 
     if response.ok:
         output_value = response.json().get("response")
+        print(output_value)        
+        # machine_nofitication(config, col, value, rule)        
+
         return output_value
     else:
         print("Request failed:", response.status_code, response.text)
@@ -324,21 +356,27 @@ def main() -> None:
 
     # No performance of telemetry if mode is "local_only"
     if config["telemetry"]["mode"] != "local_only":
-        #Update model
+        # Update model
         ensure_file_available(config, "model_download", "local_model_path", "Model")
-        #Update Rules
+        # Update Rules
         ensure_file_available(config, "rules_download", "local_rules_path", "Rules")
+        # Load Model
         model: RandomForestClassifier = load_model(config["storage"]["local_model_path"])
         item = config["test_item"]
-        outcome, diagnostics_df, diagnostics_str = predict_system_outcome(config, model, item)
-
-        if outcome == WARNING:
-            evaluate_diagnostics_and_respond(
-                diagnostics_df,
+        telemetry_df, telemetry_dict = retrieve_telemetry_from_machine(config, item)
+        telemetry_outcome = predict_telemetry_outcome(telemetry_df, model)
+        if telemetry_outcome == WARNING:
+            matched_rule=evaluate_diagnostics(
+                telemetry_dict,
                 config
             )
-        elif outcome == CRITICAL:
-            output = raise_issue_and_respond(diagnostics_str, config)
+
+            for rule in matched_rule:
+                col = rule.col
+                value = telemetry_dict[col]
+                rule.handle_breach(config, value)
+        elif telemetry_outcome == CRITICAL:
+            output = raise_issue_and_respond(telemetry_dict, config)
             print(output)
             
 
