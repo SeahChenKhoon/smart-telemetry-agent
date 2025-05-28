@@ -48,7 +48,6 @@ def read_env() -> Dict[str, str]:
         # Open AI Settings
         "azure_api_version": os.getenv("AZURE_API_VERSION", ""),
         "azure_openai_endpoint": os.getenv("AZURE_OPENAI_ENDPOINT", ""),
-        "azure_openai_endpoint": os.getenv("LLM_MODEL_NAME", ""),
         "azure_openai_key": os.getenv("AZURE_OPENAI_KEY", "")
     }
     return env_vars
