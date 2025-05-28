@@ -10,6 +10,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report
 
+import src.util as util
+
 def print_df(df: pd.DataFrame) -> None:
     """
     Print a quick summary of the DataFrame including:
@@ -322,8 +324,9 @@ def prepare_train_val_test_sets(
     return X_train, y_train, X_val, y_val, X_test, y_test
 
 def main() -> None:
-    # Load config
-    config = load_config()
+    env_variables = util.read_env()
+    config_path = env_variables["cloud_config_path"]
+    config = util.load_config(config_path)
 
     # Load Data
     dataset_url = config["dataset"]["url"]
