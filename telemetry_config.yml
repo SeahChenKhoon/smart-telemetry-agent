@@ -1,5 +1,6 @@
 cloud_api:
   base_url: https://127.0.0.1:443
+  verify_cert: false
   endpoints:
     escalate_issue: /escalate_issue
     generate_advice: /generate_advice
