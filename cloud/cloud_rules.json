@@ -1,0 +1,18 @@
+{
+  "temperature_high": {
+    "col": "temperature",
+    "min": 75.0,
+    "max": 80.0,
+    "action": "High CPU temperature detected. Do you like me to enable additional cooling?",
+    "requires_confirmation": true,
+    "api_service_name": "/enable_cpu_cooling"
+  },
+  "temperature_critical": {
+    "col": "temperature",    
+    "min": 80.0,
+    "max": 100,
+    "action": "Critical CPU temperature detected. Do you like me to initiate emergency shutdown to prevent hardware damage?",
+    "requires_confirmation": true,
+    "api_service_name": "/emergency_shutdown"
+  }
+}
