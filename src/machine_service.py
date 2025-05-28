@@ -8,9 +8,6 @@ import yaml
 
 app = FastAPI()
 
-class DiagnosticInput(BaseModel):
-    message: str
-
 class DiagnosticsItem(BaseModel):
     item: int
 
@@ -42,16 +39,6 @@ def load_config()-> Dict[str, Any]:
         config = yaml.safe_load(f)
     return config
 
-@app.post("/generate_advice")
-def generate_advice(input: DiagnosticInput):
-    msg = input.message.lower()
-    if "thermal" in msg or "90°" in msg:
-        return {
-            "advice": "Your system appears to be running hot. Check for blocked vents and reduce CPU load."
-        }
-    return {
-        "advice": "No specific advice. Please provide a more detailed issue."
-    }
 
 @app.post("/generate_system_parameters")
 def generate_system_parameters(item: DiagnosticsItem):
