@@ -19,3 +19,4 @@ output:
   model_path: "cloud/random_forest_model.joblib"
   rules_path: "cloud/rules.json"
   clould_path: "cloud/cloud_rules.json"
+  log_err_path: "cloud/log_err.json"
