@@ -3,7 +3,7 @@ llm_prompt: 'You are an intelligent assistant.
   Based on the telemetry data and rules, determine the appropriate action.
 
   Only respond with the result in the following exact format:
-  <action>|<requires_confirmation>|<api_service_name>
+  <col>|<min>|<max>|<action>|<requires_confirmation>|<api_service_name>
 
   Do not include any explanation, preamble, or extra text.
 
