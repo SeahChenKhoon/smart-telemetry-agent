@@ -331,15 +331,6 @@ def handle_matched_rules(
 
 
 def main() -> None:
-    """
-    Entry point for the telemetry diagnostics application.
-
-    - Loads environment variables and config.
-    - Prompts user to configure telemetry sharing if unset.
-    - Downloads model and rules if telemetry is shared.
-    - Loads model, fetches telemetry, predicts outcome.
-    - Handles rule-based actions or escalation if required.
-    """    
     env_variables = util.read_env()
     config_path = env_variables["telemetry_config_path"]
     config = util.load_config(config_path)
@@ -354,20 +345,44 @@ def main() -> None:
         ensure_file_available(config, "rules_download", "local_rules_path", "Rules")
         # Load Model
         model: RandomForestClassifier = load_model(config["storage"]["local_model_path"])
-        item = config["test_item"]
-        telemetry_df, telemetry_dict, telemetry_str = retrieve_telemetry_from_machine(config, item)
-        telemetry_outcome = predict_telemetry_outcome(telemetry_df, model)
-        if telemetry_outcome == WARNING:
-            matched_rule=evaluate_diagnostics(
-                telemetry_dict,
-                config
-            )
-            handle_matched_rules(matched_rule,telemetry_dict,config)
-        elif telemetry_outcome == CRITICAL and config["telemetry"]["mode"] == "share_with_dell":
-            matched_rule = raise_issue_and_get_adviced(config["cloud_api"]["verify_cert"],telemetry_str, config)
-            handle_matched_rules(matched_rule,telemetry_dict,config)
+        while True:
+            print("\nSelect an item to test:")
+            print("  0: Testing Normal Temperature")
+            print("  1: Testing Moderate Temperature to reduce screen brightness")
+            print("  2: Testing Moderate Temperature to increase fan speed")
+            print("  3: Testing High Temperature to enable additional cooling")
+            print("  4: Testing Critical Temperature to shutdown machine")
+            print("  9: Exit")
 
-            
+            try:
+                user_input = int(input("Enter item ID (0–4) to test, or 9 to exit: "))
+            except ValueError:
+                print("Invalid input. Please enter a number.")
+                continue
+
+            if user_input == 9:
+                print("Exiting loop.")
+                break
+
+            if user_input not in [0, 1, 2, 3, 4]:
+                print("Please enter a valid item ID between 0 and 4.")
+                continue
+
+            item = user_input
+            telemetry_df, telemetry_dict, telemetry_str = retrieve_telemetry_from_machine(config, item)
+            telemetry_outcome = predict_telemetry_outcome(telemetry_df, model)
+
+            if telemetry_outcome == WARNING:
+                matched_rule = evaluate_diagnostics(telemetry_dict, config)
+                handle_matched_rules(matched_rule, telemetry_dict, config)
+
+            elif telemetry_outcome == CRITICAL and config["telemetry"]["mode"] == "share_with_dell":
+                matched_rule = raise_issue_and_get_adviced(
+                    config["cloud_api"]["verify_cert"],
+                    telemetry_str,
+                    config
+                )
+                handle_matched_rules(matched_rule, telemetry_dict, config)
 
      
 if __name__ == "__main__":
