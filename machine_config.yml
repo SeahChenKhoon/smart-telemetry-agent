@@ -1,4 +1,5 @@
 Data:
+  # Test case 0: Testing Normal Temperature
   - cpu_usage: 54.881350
     memory_usage: 78.950861
     network_traffic: 164.775973
@@ -12,6 +13,7 @@ Data:
     task_type_io: false
     task_type_network: true
 
+  # Test case 1: Testing Moderate Temperature to reduce screen brightness
   - cpu_usage: 54.488318
     memory_usage: 88.100960
     network_traffic: 486.414307
@@ -25,6 +27,7 @@ Data:
     task_type_io: false
     task_type_network: false
  
+ # Test case 2: Testing Moderate Temperature to increase fan speed
   - cpu_usage: 49.282088
     memory_usage: 92.709195
     network_traffic: 203.674847
@@ -33,11 +36,12 @@ Data:
     execution_time: 24.602549
     energy_efficiency: 0.796277
     task_priority: 1
-    temperature: 110.1
+    temperature: 74
     task_type_compute: false
     task_type_io: true
     task_type_network: false
 
+ # Test case 3: Testing High Temperature to enable additional cooling
   - cpu_usage: 49.282088
     memory_usage: 92.709195
     network_traffic: 203.674847
@@ -46,7 +50,21 @@ Data:
     execution_time: 24.602549
     energy_efficiency: 0.796277
     task_priority: 1
-    temperature: 69.9
+    temperature: 76
+    task_type_compute: false
+    task_type_io: true
+    task_type_network: false
+
+ # Test case 4: Testing Critical Temperature to shutdown machine
+  - cpu_usage: 49.282088
+    memory_usage: 92.709195
+    network_traffic: 203.674847
+    power_consumption: 231.467903
+    num_executed_instructions: 5483.0
+    execution_time: 24.602549
+    energy_efficiency: 0.796277
+    task_priority: 1
+    temperature: 100
     task_type_compute: false
     task_type_io: true
     task_type_network: false
