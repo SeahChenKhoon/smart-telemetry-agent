@@ -45,6 +45,7 @@ class cls_Rule(BaseModel):
         except requests.RequestException as e:
             print(f"[ERROR] Failed to call API at {api_url}: {e}") 
 
+
     def parse_rule_string_to_list(rule_str: str) -> List["cls_Rule"]:
         """
         Parse a single pipe-delimited rule string into a list containing one cls_Rule object.
@@ -65,3 +66,4 @@ class cls_Rule(BaseModel):
             api_service_name=parts[5] if parts[5] else None
         )
         return [rule]
+    
