@@ -2,6 +2,8 @@ llm_prompt: 'You are an intelligent assistant.
 
   Based on the telemetry data and rules, determine the appropriate action.
 
+  A rule is considered matched only if the telemetry value for the specified column is greater than or equal to the rule''s min value and strictly less than its max value (i.e., min ≤ value < max).
+
   Only respond with the result in the following exact format:
   <col>|<min>|<max>|<action>|<requires_confirmation>|<api_service_name>
 
@@ -12,6 +14,7 @@ llm_prompt: 'You are an intelligent assistant.
 
   Rules:
   {insert rules JSON here}'
+
 output:
   model_path: "cloud/random_forest_model.joblib"
   rules_path: "cloud/rules.json"
