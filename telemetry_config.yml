@@ -1,11 +1,12 @@
 cloud_api:
   base_url: https://127.0.0.1:443
-  verify_cert: false
   endpoints:
     escalate_issue: /escalate_issue
     generate_advice: /generate_advice
     model_download: /load_local_model
     rules_download: /load_local_rules
+    log_error: /log_error
+  verify_cert: false
 machine_api:
   base_url: http://127.0.0.2:8000
   endpoints:
@@ -33,7 +34,7 @@ telemetry:
     3. [ ] Do not collect telemetry at all
 
     '
-  mode: unset
+  mode: share_with_dell
   mode_options:
   - unset
   - share_with_dell
