@@ -16,7 +16,7 @@ NORMAL = 0
 WARNING  = 1
 CRITICAL  = 2
 
-def download_from_cloud(model_url: str, save_path: str, object_name: str) -> bool:
+def download_from_cloud(verify_cert:bool, model_url: str, save_path: str, object_name: str) -> bool:
     """
     Download a file from a cloud API and save it locally.
 
@@ -34,7 +34,7 @@ def download_from_cloud(model_url: str, save_path: str, object_name: str) -> boo
         bool: True if download succeeds and file is saved, False otherwise.
     """    
     try:
-        response = requests.post(model_url, verify=False)
+        response = requests.post(model_url, verify=verify_cert)
         if response.ok:
             with open(save_path, "wb") as f:
                 f.write(response.content)
@@ -76,7 +76,7 @@ def ensure_file_available(config: Dict, endpoint_key: str, storage_key: str, obj
     save_path = config["storage"][storage_key]
 
     print(f"Downloading/Updating {object_name} from {download_url}")
-    download_from_cloud(download_url, save_path, object_name)
+    download_from_cloud(config["cloud_api"]["verify_cert"], download_url, save_path, object_name)
 
 
 def update_telemetry_mode(config_path: str, new_mode: str):
@@ -213,59 +213,6 @@ def retrieve_telemetry_from_machine(
 
     return telemetry_df, telemetry_dict, telemetry_str
 
-
-def machine_nofitication(    
-    config: Dict[str, Any],
-    col: str,
-    value: float,
-    rule: Dict[str, Any]
-)->None:
-    message = rule.get("action", f"{col} exceeds threshold.") 
-    print(f"[{col.upper()}] Value = {value} exceeds {rule['max']}")
-    if rule.get("requires_confirmation", False):
-        user_input = input(f"{message} (Y/N): ").strip().lower()
-        if user_input == "y":
-            base_url = config["machine_api"]["base_url"]
-            endpoint = rule.get("api_service_name")
-            
-            if not endpoint:
-                print("[WARNING] API service name not specified in rule.")
-                return
-
-            api_url = base_url + endpoint
-            try:
-                response = requests.post(api_url)
-                diagnostics_dict: Dict[str, Any] = response.json()
-                print(diagnostics_dict.get("response", "No response received from API."))
-            except requests.RequestException as e:
-                print(f"[ERROR] Failed to call API: {e}")
-    else:
-        print(f"[NOTICE] {message}")                
-
-
-def handle_diagnostic_threshold_breach(
-    config: Dict[str, Any],
-    col: str,
-    value: float,
-    rule: Dict[str, Any]
-) -> None:
-    """
-    Handle a telemetry threshold breach based on rules, optionally prompting user and calling an API.
-
-    Args:
-        config (Dict[str, Any]): Configuration dictionary containing API base URL.
-        col (str): The name of the diagnostic column being evaluated.
-        value (float): The current value of the diagnostic metric.
-        rule (Dict[str, Any]): Rule dictionary containing threshold, action, and optional API info.
-
-    Returns:
-        None
-    """
-    if "max" in rule and value > rule["max"]:
-        message = rule.get("action", f"{col} exceeds threshold.")
-        machine_nofitication(config, col, value, rule)        
- 
-
 def match_rules(rules: List[cls_Rule.cls_Rule], telemetry_dict: Dict[str, float]) -> List[cls_Rule.cls_Rule]:
     """
     Evaluate a list of rules against telemetry data and return all matching rules.
@@ -297,8 +244,7 @@ def evaluate_diagnostics(
     return matched_rule
 
 
-
-def raise_issue_and_get_adviced(telemetry_str: str, config: Dict[str, Any]):
+def raise_issue_and_get_adviced(verify_cert:bool, telemetry_str: str, config: Dict[str, Any]):
     base_url = config["cloud_api"]["base_url"]
     endpoint = config["cloud_api"]["endpoints"]["escalate_issue"]
     
@@ -310,7 +256,7 @@ def raise_issue_and_get_adviced(telemetry_str: str, config: Dict[str, Any]):
     response = requests.post(
         api_url,
         json={"message": telemetry_str},
-        verify=False
+        verify=verify_cert
     )
 
     if response.ok:
@@ -369,7 +315,7 @@ def main() -> None:
             )
             handle_matched_rules(matched_rule,telemetry_dict,config)
         elif telemetry_outcome == CRITICAL:
-            matched_rule = raise_issue_and_get_adviced(telemetry_str, config)
+            matched_rule = raise_issue_and_get_adviced(config["cloud_api"]["verify_cert"],telemetry_str, config)
             handle_matched_rules(matched_rule,telemetry_dict,config)
 
             
