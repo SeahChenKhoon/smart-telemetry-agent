@@ -7,6 +7,9 @@ doc/*
 !doc/*.docx
 !doc/*.pptx
 
+# Only ignore this specific file
+cloud/random_forest_model.joblib
+
 # Still ignore unwanted files explicitly
 doc/*.bkp
 doc/~$*.docx
@@ -14,6 +17,5 @@ doc/*.dtmp
 
 # General ignores
 **/__pycache__/
-cloud/
 edge/
 .env
