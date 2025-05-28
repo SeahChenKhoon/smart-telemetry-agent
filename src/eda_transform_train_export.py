@@ -324,6 +324,17 @@ def prepare_train_val_test_sets(
     return X_train, y_train, X_val, y_val, X_test, y_test
 
 def main() -> None:
+    """
+    Main function to orchestrate the end-to-end machine learning pipeline.
+
+    This function:
+    - Loads configuration and dataset
+    - Applies data preprocessing and feature engineering
+    - Splits the dataset into training/validation/test sets
+    - Trains a Random Forest classifier
+    - Evaluates the model on the validation set
+    - Saves the trained model to disk
+    """    
     env_variables = util.read_env()
     config_path = env_variables["cloud_config_path"]
     config = util.load_config(config_path)
