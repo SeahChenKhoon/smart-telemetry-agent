@@ -11,6 +11,9 @@ from typing import Any, Dict, Optional, List, Tuple, Union
 
 import src.util as util
 import src.cls_telemetric as cls_Rule
+import src.cls_telemetric as cls_ErrorLog
+
+
 
 NORMAL = 0
 WARNING  = 1
@@ -244,6 +247,34 @@ def evaluate_diagnostics(
     return matched_rule
 
 
+def post_error_log_to_api(
+    error_log_dict: Dict[str, Any],
+    config: Dict[str, Any],
+    base_url: str,
+    verify_cert: bool
+) -> None:
+    """
+    Send an error log dictionary to the configured cloud API endpoint.
+
+    Args:
+        error_log_dict (Dict[str, Any]): The error log to be sent.
+        config (Dict[str, Any]): Configuration dictionary containing API endpoints.
+        base_url (str): The base URL of the cloud API.
+        verify_cert (bool): Whether to verify the SSL certificate.
+
+    Returns:
+        None
+    """
+    error_log_str = json.dumps(error_log_dict)
+    endpoint = config["cloud_api"]["endpoints"]["log_error"]
+    api_url = base_url + endpoint
+
+    requests.post(
+        api_url,
+        json={"message": error_log_str},
+        verify=verify_cert
+    )
+
 def raise_issue_and_get_adviced(verify_cert:bool, telemetry_str: str, config: Dict[str, Any]):
     base_url = config["cloud_api"]["base_url"]
     endpoint = config["cloud_api"]["endpoints"]["escalate_issue"]
@@ -258,14 +289,23 @@ def raise_issue_and_get_adviced(verify_cert:bool, telemetry_str: str, config: Di
         json={"message": telemetry_str},
         verify=verify_cert
     )
-
     if response.ok:
         output_value = response.json().get("response")
-        mapped_rules: List[cls_Rule.cls_Rule] = cls_Rule.cls_Rule.parse_rule_string_to_list(output_value)
-        return mapped_rules
+        if not output_value:
+            error_log_dict = {
+                "error_message": "output_value is empty",
+                "telemetry_str": telemetry_str,
+                "output_value": output_value
+            }
+            post_error_log_to_api(error_log_dict, config, base_url, verify_cert)
+
+            return []
+        else:
+            mapped_rules: List[cls_Rule.cls_Rule] = cls_Rule.cls_Rule.parse_rule_string_to_list(output_value)
+            return mapped_rules
     else:
         print("Request failed:", response.status_code, response.text)
-        return None
+        return []
 
 def handle_matched_rules(
     matched_rules: List[cls_Rule.cls_Rule],
@@ -314,7 +354,7 @@ def main() -> None:
                 config
             )
             handle_matched_rules(matched_rule,telemetry_dict,config)
-        elif telemetry_outcome == CRITICAL:
+        elif telemetry_outcome == CRITICAL and config["telemetry"]["mode"] == "share_with_dell":
             matched_rule = raise_issue_and_get_adviced(config["cloud_api"]["verify_cert"],telemetry_str, config)
             handle_matched_rules(matched_rule,telemetry_dict,config)
 
