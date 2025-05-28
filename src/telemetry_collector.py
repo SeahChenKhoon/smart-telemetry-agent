@@ -7,7 +7,7 @@ import requests
 import joblib
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import src.util as util
 
@@ -69,48 +69,26 @@ def show_intelligent_support_prompt(config: dict[str, Any]) -> str:
     return options.get(choice, "invalid")
 
 
-def ensure_model_available(config: dict, refresh: bool = False):
+def ensure_file_available(config: Dict, endpoint_key: str, storage_key: str, object_name: str) -> None:
     """
-    Ensure the model file exists locally; download from cloud if not.
+    Ensure that a specific file (model or rules) is available locally.
+    Downloads the file from the cloud if it's not already present.
 
     Args:
-        config (dict): Configuration dictionary loaded from YAML.
+        config (Dict): Configuration dictionary containing cloud API and storage paths.
+        endpoint_key (str): Key to locate the correct download endpoint in config["cloud_api"]["endpoints"].
+        storage_key (str): Key to locate the correct local storage path in config["storage"].
+        object_name (str): Name of the object for logging purposes.
     """
     base_url = config["cloud_api"]["base_url"]
-    model_url = base_url + config["cloud_api"]["endpoints"]["model_download"]
-    save_path = config["storage"]["local_model_path"]
-
-    if not os.path.exists(save_path) or refresh:
-        print(f"[Telemetry] Model not found locally. Downloading from {model_url}")
-        download_from_cloud(model_url, save_path, "Model")
-    else:
-        print(f"[Telemetry] Local model already exists at {save_path}")
-
-
-def ensure_rules_available(config: dict):
-    """
-    Ensure that the local telemetry rules file is available.
-
-    This function checks if the local rules file exists at the configured path.
-    If the file is missing, it attempts to download it from a cloud API endpoint.
-    Otherwise, it confirms that the file already exists.
-
-    Args:
-        config (Dict[str, Any]): Configuration dictionary containing cloud API base URL,
-                                 endpoints, and local storage path for rules.
-
-    Returns:
-        None
-    """    
-    base_url = config["cloud_api"]["base_url"]
-    rules_url = base_url + config["cloud_api"]["endpoints"]["rules_download"]
-    save_path = config["storage"]["local_rules_path"]
+    download_url = base_url + config["cloud_api"]["endpoints"][endpoint_key]
+    save_path = config["storage"][storage_key]
 
     if not os.path.exists(save_path):
-        print(f"[Telemetry] Rules not found locally. Downloading from {rules_url}")
-        download_from_cloud(rules_url, save_path, "Rules")
+        print(f"[Telemetry] {object_name} not found locally. Downloading from {download_url}")
+        download_from_cloud(download_url, save_path, object_name)
     else:
-        print(f"[Telemetry] Local rules already exists at {save_path}")
+        print(f"[Telemetry] Local {object_name.lower()} already exists at {save_path}")
 
 
 def update_telemetry_mode(config_path: str, new_mode: str):
@@ -178,31 +156,7 @@ def load_model(model_path: str) -> RandomForestClassifier:
     else:
         raise FileNotFoundError(f"Model file not found at: {model_path}")
 
-
-def load_diagnostics(model_url:str, item:int)-> pd.DataFrame:
-    """
-    Send a POST request to a model API endpoint to retrieve telemetry diagnostics
-    for a specified item and convert the response into a pandas DataFrame.
-
-    The API is expected to return a JSON object containing a "diagnostics" string,
-    which is a space-separated set of key=value pairs. These are parsed and
-    converted to appropriate Python types and then wrapped into a single-row DataFrame.
-
-    Args:
-        model_url (str): The full URL of the diagnostics API endpoint.
-        item (int): The test item ID or index to send in the POST request.
-
-    Returns:
-        pd.DataFrame: A single-row DataFrame containing structured diagnostic data.
-    """    
-    response = requests.post(
-            model_url,
-            json={"item": item}
-        )
-    diagnostics_dict:dict = response.json()
-    # The diagnostics string
-    diag_str = diagnostics_dict["diagnostics"]
-
+def convert_diagnostic_to_df(diag_str)->pd.DataFrame:
     # Step 1: Split into key-value pairs
     pairs = diag_str.strip().split()
 
@@ -226,6 +180,17 @@ def load_diagnostics(model_url:str, item:int)-> pd.DataFrame:
     diagnostics_df = pd.DataFrame([diag_dict])
     return diagnostics_df
 
+def load_diagnostics(model_url:str, item:int)-> str:
+    response = requests.post(
+            model_url,
+            json={"item": item}
+        )
+    diagnostics_dict:dict = response.json()
+    # The diagnostics string
+    diag_str = diagnostics_dict["diagnostics"]
+
+    return diag_str
+
 
 def predict_system_outcome(
     config: Dict[str, Any],
@@ -247,11 +212,12 @@ def predict_system_outcome(
     endpoint = config["machine_api"]["endpoints"]["generate_system_parameters"]
     model_url = base_url + endpoint
 
-    diagnostics_df = load_diagnostics(model_url, item)
+    diagnostics_str = load_diagnostics(model_url, item)
+    diagnostics_df = convert_diagnostic_to_df(diagnostics_str)
     prediction = model.predict(diagnostics_df)
     print(f"Predicted outcome: {int(prediction[0])}")
 
-    return int(prediction[0]), diagnostics_df
+    return int(prediction[0]), diagnostics_df, diagnostics_str
 
 
 def handle_diagnostic_threshold_breach(
@@ -299,25 +265,10 @@ def handle_diagnostic_threshold_breach(
 
 def evaluate_diagnostics_and_respond(
     diagnostics_df: pd.DataFrame,
-    rules_path: str,
     config: Dict[str, Any]
 ) -> None:
-    """
-    Evaluate diagnostics against defined rules and trigger responses if thresholds are breached.
 
-    This function loads diagnostic rules from a JSON file, compares them with current
-    diagnostics data, and invokes appropriate actions (e.g., user prompts or API calls)
-    by delegating to `handle_diagnostic_threshold_breach()`.
-
-    Args:
-        diagnostics_df (pd.DataFrame): DataFrame containing one row of telemetry values.
-        rules_path (str): Path to the JSON rules file defining max values, actions, etc.
-        config (Dict[str, Any]): Configuration dictionary, including machine API details.
-
-    Returns:
-        None
-    """
-    with open(rules_path, "r") as f:
+    with open(config["storage"]["local_rules_path"], "r") as f:
         rules: Dict[str, Dict[str, Any]] = json.load(f)
 
     for col, rule in rules.items():
@@ -326,46 +277,71 @@ def evaluate_diagnostics_and_respond(
 
         value = diagnostics_df[col].iloc[0]
         handle_diagnostic_threshold_breach(config, col, value, rule)
+    return None
 
-
-def main() -> None:
+def raise_issue_and_respond(diagnostics_str: str, config: Dict[str, Any]) -> Optional[str]:
     """
-    Main entry point for the intelligent support and telemetry evaluation system.
+    Sends a diagnostics message to the escalation API endpoint and returns the response.
 
-    This function:
-    - Loads environment variables and telemetry configuration from a YAML file.
-    - Ensures the local model and rule files are available or downloaded.
-    - Prompts the user to select a telemetry sharing mode and updates the config.
-    - If telemetry is not limited to local-only, it refreshes resources, loads the model,
-      performs system diagnostics, and evaluates them using predefined rules.
+    This function posts the provided diagnostics string to the configured escalation API.
+    If the request is successful, it extracts and returns the 'response' field from the JSON response.
+    If the endpoint is missing or the request fails, it logs a warning or error and returns None.
+
+    Args:
+        diagnostics_str (str): The diagnostics message to be sent in the request body.
+        config (Dict[str, Any]): Configuration dictionary containing the API base URL and endpoints.
 
     Returns:
-        None
+        Optional[str]: The response string from the API if successful, otherwise None.
     """
+    base_url = config["cloud_api"]["base_url"]
+    endpoint = config["cloud_api"]["endpoints"]["escalate_issue"]
+    
+    if not endpoint:
+        print("[WARNING] API service name not specified in rule.")
+        return None
+
+    api_url = base_url + endpoint
+    response = requests.post(
+        api_url,
+        json={"message": diagnostics_str}
+    )
+
+    if response.ok:
+        output_value = response.json().get("response")
+        return output_value
+    else:
+        print("Request failed:", response.status_code, response.text)
+        return None
+    
+
+def main() -> None:
     env_variables = util.read_env()
     config_path = env_variables["telemetry_config_path"]
     config = util.load_config(config_path)
 
-    ensure_model_available(config)
-    ensure_rules_available(config)
     show_telemetry_prompt_and_store(config, config_path)
 
     # No performance of telemetry if mode is "local_only"
     if config["telemetry"]["mode"] != "local_only":
-        ensure_model_available(config, refresh=True)
-        ensure_rules_available(config, refresh=True)
-
+        #Update model
+        ensure_file_available(config, "model_download", "local_model_path", "Model")
+        #Update Rules
+        ensure_file_available(config, "rules_download", "local_rules_path", "Rules")
         model: RandomForestClassifier = load_model(config["storage"]["local_model_path"])
         item = config["test_item"]
-        outcome, diagnostics_df = predict_system_outcome(config, model, item)
+        outcome, diagnostics_df, diagnostics_str = predict_system_outcome(config, model, item)
 
         if outcome == WARNING:
             evaluate_diagnostics_and_respond(
                 diagnostics_df,
-                config["storage"]["local_rules_path"],
                 config
             )
-        
+        elif outcome == CRITICAL:
+            output = raise_issue_and_respond(diagnostics_str, config)
+            print(output)
+            
+
      
 if __name__ == "__main__":
     main()
