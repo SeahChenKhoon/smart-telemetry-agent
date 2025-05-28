@@ -1,8 +1,10 @@
 import yaml
 import os
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from os import path as Path
 from openai import OpenAI, AzureOpenAI
+from datetime import datetime
+from pydantic import BaseModel, Field
 
 from dotenv import load_dotenv
 from src.cls_env import cls_Env
@@ -204,4 +206,12 @@ class LLMPromptExecutor:
             self.llm_temperature
         )
         return self._strip_markdown_fences(response.choices[0].message.content.strip())
-    
+
+class cls_ErrorLog(BaseModel):
+    timestamp: datetime = Field(default_factory=datetime.now)
+    error_message: str
+    telemetry_str: str
+    output_value: Optional[str]
+
+    def to_json(self) -> str:
+        return self.model_dump_json()
