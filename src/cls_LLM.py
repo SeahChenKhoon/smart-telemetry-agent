@@ -3,19 +3,32 @@ from typing import Any
 from openai import OpenAI, AzureOpenAI
 
 class cls_LLM:
-    def __init__(
-        self, cls_env:cls_Env
-    ):
-        provider = cls_env.llm_provider
-        client = self._get_llm_client(cls_env)
-        model_arg = self._get_model_arguments(
-            provider = provider,
-            model_name = cls_env.llm_model_name,
-            azure_deployment_id = cls_env.azure_deployment_id
+    def __init__(self, cls_env: cls_Env) -> None:
+        """
+        Initialize the LLMPromptExecutor with environment-based configuration.
+
+        This constructor sets up the appropriate LLM client (OpenAI or Azure OpenAI)
+        and stores the model identifier and temperature for prompt execution.
+
+        Args:
+            cls_env (cls_Env): An instance of the cls_Env class containing LLM configuration parameters.
+
+        Attributes:
+            provider (Any): The initialized LLM client (OpenAI or AzureOpenAI).
+            model_arg (str): The model name or Azure deployment ID to use.
+            llm_temperature (float): Sampling temperature for LLM completions.
+        """
+        provider: str = cls_env.llm_provider
+        client: Any = self._get_llm_client(cls_env)
+        model_arg: str = self._get_model_arguments(
+            provider=provider,
+            model_name=cls_env.llm_model_name,
+            azure_deployment_id=cls_env.azure_deployment_id
         )
-        self.llm_temperature=cls_env.llm_temperature
-        self.provider=client
-        self.model_arg=model_arg
+        self.llm_temperature: float = cls_env.llm_temperature
+        self.provider: Any = client
+        self.model_arg: str = model_arg
+
 
     def _strip_markdown_fences(self, text: str) -> str:
         """
@@ -152,3 +165,5 @@ class cls_LLM:
             self.llm_temperature
         )
         return self._strip_markdown_fences(response.choices[0].message.content.strip())
+    
+    
