@@ -33,7 +33,7 @@ telemetry:
     3. [ ] Do not collect telemetry at all
 
     '
-  mode: share_with_dell
+  mode: unset
   mode_options:
   - unset
   - share_with_dell
@@ -43,4 +43,4 @@ telemetry:
     '1': share_with_dell
     '2': local_only
     '3': disable_telemetry
-test_item: 2
+test_item: 3
