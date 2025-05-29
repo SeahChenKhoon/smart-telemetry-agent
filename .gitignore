@@ -13,6 +13,7 @@ cloud/random_forest_model.joblib
 # Still ignore unwanted files explicitly
 doc/*.bkp
 doc/~$*.docx
+doc/~$*.pptx
 doc/*.dtmp
 
 # General ignores
