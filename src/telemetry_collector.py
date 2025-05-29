@@ -41,9 +41,9 @@ def download_from_cloud(verify_cert:bool, model_url: str, save_path: str, object
         if response.ok:
             with open(save_path, "wb") as f:
                 f.write(response.content)
-            print(f"[Telemetry] {object_name} downloaded and saved to: {save_path}")
+            print(f"\n{object_name} downloaded and saved to: {save_path}\n")
             return True
-        print(f"[Telemetry] Failed to download {object_name}: {response.status_code} - {response.text}")
+        print(f"\nFailed to download {object_name}: {response.status_code} - {response.text}\n")
     except requests.RequestException as e:
         print(f"[Telemetry] Request error: {e}")
     except Exception as e:
@@ -67,9 +67,9 @@ def show_intelligent_support_prompt(config: dict[str, Any]) -> str:
         str: The selected telemetry mode (e.g., "share_with_dell", "local_only",
              "disable_telemetry") or "invalid" if the input is not recognized.
     """
-    print(config["telemetry"]["intro_message"])
-    choice = input(config["telemetry"]["choice_prompt"]).strip()
-    options = config["telemetry"]["options"]
+    print(config["privacy"]["intro_message"])
+    choice = input(config["privacy"]["choice_prompt"]).strip()
+    options = config["privacy"]["options"]
     return options.get(choice, "invalid")
 
 
@@ -78,7 +78,7 @@ def ensure_file_available(config: Dict, endpoint_key: str, storage_key: str, obj
     download_url = base_url + config["cloud_api"]["endpoints"][endpoint_key]
     save_path = config["storage"][storage_key]
 
-    print(f"Downloading/Updating {object_name} from {download_url}")
+    print(f"\nDownloading/Updating {object_name} from {download_url}\n")
     download_from_cloud(config["cloud_api"]["verify_cert"], download_url, save_path, object_name)
 
 
@@ -98,34 +98,44 @@ def update_telemetry_mode(config_path: str, new_mode: str):
     """    
     with open(config_path, "r") as f:
         config = yaml.safe_load(f)
-    config["telemetry"]["mode"] = new_mode
+    config["privacy"]["mode"] = new_mode
 
     with open(config_path, "w") as f:
         yaml.safe_dump(config, f)
 
-    print(f"Telemetry mode set to: {new_mode}")
+    print(f"Privacy mode set to: {new_mode}")
 
 
-def show_telemetry_prompt_and_store(config: dict, config_path: str) -> None:
+def show_telemetry_prompt_and_store(config: dict, config_path: str) -> str:
     """
-    Prompt the user to select telemetry mode if it has not been set,
-    and update the configuration file with the selected mode.
+    Display a prompt to configure telemetry privacy mode if it is currently unset.
+
+    If the telemetry mode in the configuration is set to 'unset', this function
+    prompts the user to select a mode using `show_intelligent_support_prompt()`.
+    If the selected mode is valid, it updates the mode in the configuration file
+    using `update_telemetry_mode()`. If the mode is already set, it skips the prompt
+    and returns the existing mode.
 
     Args:
-        config (dict): The loaded configuration dictionary.
-        config_path (str): Path to the telemetry config YAML file.
-    """
-    current_mode = config.get("telemetry", {}).get("mode", "unset")
+        config (dict): The configuration dictionary containing the current privacy mode.
+        config_path (str): The file path to the telemetry configuration file to update.
+
+    Returns:
+        str: The telemetry mode selected by the user or the existing mode if already set.
+    """    
+    current_mode = config["privacy"]["mode"]
 
     if current_mode == "unset":
-        mode = show_intelligent_support_prompt(config)
+        privacy_mode = show_intelligent_support_prompt(config)
 
-        if mode in {"share_with_dell", "local_only", "disable_telemetry"}:
-            update_telemetry_mode(config_path, mode)
+        if privacy_mode in {"share_with_dell", "local_only", "disable_telemetry"}:
+            update_telemetry_mode(config_path, privacy_mode)
         else:
             print("[!] Invalid selection. No changes made.")
+        return privacy_mode
     else:
-        print(f"[✔] Telemetry mode already set to '{current_mode}'. Skipping prompt.")
+        print(f"\nPrivacy mode already set to '{current_mode}'. Skipping privacy selection mode.\n")
+    return current_mode
 
 
 def load_model(model_path: str) -> RandomForestClassifier:
@@ -335,25 +345,24 @@ def main() -> None:
     config_path = env_variables["telemetry_config_path"]
     config = util.load_config(config_path)
 
-    show_telemetry_prompt_and_store(config, config_path)
-
+    privacy_mode = show_telemetry_prompt_and_store(config, config_path)
     # No performance of telemetry if mode is "local_only"
-    if config["telemetry"]["mode"] != "local_only":
+    privacy_stmt = config["privacy"]["stmt"]
+    privacy_stmt = privacy_stmt.format(
+            privacy_mode=privacy_mode,
+            telemetry_config_path=config_path
+        )
+    if privacy_mode != "local_only":    
         # Update model
         ensure_file_available(config, "model_download", "local_model_path", "Model")
         # Update Rules
         ensure_file_available(config, "rules_download", "local_rules_path", "Rules")
         # Load Model
         model: RandomForestClassifier = load_model(config["storage"]["local_model_path"])
+        
         while True:
-            print("\nSelect an item to test:")
-            print("  0: Testing Normal Temperature")
-            print("  1: Testing Moderate Temperature to reduce screen brightness")
-            print("  2: Testing Moderate Temperature to increase fan speed")
-            print("  3: Testing High Temperature to enable additional cooling")
-            print("  4: Testing Critical Temperature to shutdown machine")
-            print("  9: Exit")
-
+            print(config["telemetry"]["menu_option"])
+            print(privacy_stmt)
             try:
                 user_input = int(input("Enter item ID (0–4) to test, or 9 to exit: "))
             except ValueError:
@@ -376,14 +385,15 @@ def main() -> None:
                 matched_rule = evaluate_diagnostics(telemetry_dict, config)
                 handle_matched_rules(matched_rule, telemetry_dict, config)
 
-            elif telemetry_outcome == CRITICAL and config["telemetry"]["mode"] == "share_with_dell":
+            elif telemetry_outcome == CRITICAL and config["privacy"]["mode"] == "share_with_dell":
                 matched_rule = raise_issue_and_get_adviced(
                     config["cloud_api"]["verify_cert"],
                     telemetry_str,
                     config
                 )
                 handle_matched_rules(matched_rule, telemetry_dict, config)
-
+    else:
+        print(privacy_stmt)
      
 if __name__ == "__main__":
     main()
