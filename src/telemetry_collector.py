@@ -352,7 +352,7 @@ def main() -> None:
             privacy_mode=privacy_mode,
             telemetry_config_path=config_path
         )
-    if privacy_mode != "local_only":    
+    if privacy_mode != "disable_telemetry":    
         # Update model
         ensure_file_available(config, "model_download", "local_model_path", "Model")
         # Update Rules
