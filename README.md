@@ -13,7 +13,9 @@ Key use cases include:
 - Predictive diagnostics for IoT or industrial edge devices
 - Autonomous response to system overheating or stress
 - Rule- and ML-driven device protection with minimal human intervention
+
 ---
+
 ## 🔧 Features
 
 - **Edge-based Telemetry Collection** via secure FastAPI
@@ -70,6 +72,7 @@ Key use cases include:
 ├── requirements.txt                            # Python dependencies
 ├── README.md                                   # Project overview and usage guide
 ```
+
 ---
 
 ## 🔧 Installation
@@ -118,8 +121,6 @@ cp .env_sample .env
 Ensure the following YAML files are configured based on your system:
 
 - `machine_config.yml` — for mock telemetry input
-
-## 🧪 Sample Telemetry Test Cases
 
 | Test Case               | Temp (°C) | CPU Usage | Memory Usage | Network Traffic | Power Consumption | Executed Instr. | Exec Time | Efficiency | Priority | Compute | IO    | Network |
 |-------------------------|-----------|-----------|---------------|------------------|--------------------|------------------|-----------|-------------|----------|---------|-------|----------|
@@ -215,6 +216,8 @@ uvicorn src.machine_service:app --reload --host 127.0.0.2 --port 8000
 PYTHONPATH=. python src/telemetry_collector.py
 ```
 
+---
+
 ## 🚀 How It Works
 ###  1. Model Training
    - `eda_transform_train_export.py` loads a Hugging Face dataset, synthesizes temperature data, labels severity (Normal, Warning, Critical), and trains a Random Forest model.
@@ -256,6 +259,8 @@ Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
+
+---
 
 ## 👤 Author
 Seah Chen Khoon
