@@ -44,8 +44,8 @@ privacy:
   - disable_telemetry
   options:
     '1': share_with_dell
-    '2': disable_telemetry
-    '3': local_only
+    '2': local_only
+    '3': disable_telemetry
   stmt: '
 
     Note: The privacy mode is currently set to `{privacy_mode}`.
@@ -56,8 +56,8 @@ privacy:
 
     '
 storage:
-  local_model_path: edge/received_model.joblib
-  local_rules_path: edge/received_rules.json
+  local_model_path: edge/random_forest_model.joblib
+  local_rules_path: edge/edge_rules.json
 telemetry:
   menu_option: '
 
