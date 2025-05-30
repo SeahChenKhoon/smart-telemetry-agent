@@ -1,8 +1,8 @@
-fsspec==2025.5.1
-huggingface-hub==0.32.0
-scikit-learn==1.6.1
-uvicorn==0.34.2
-fastapi==0.115.12
-pandas==2.2.3
-openai==1.82.1
-dotenv==0.9.9
+dotenv==0.9.9            # Environment variable support
+fsspec==2025.5.1         # File system abstraction
+pandas==2.2.3            # Data processing
+scikit-learn==1.6.1      # Machine learning
+openai==1.82.1           # OpenAI API client
+huggingface-hub==0.32.0  # Model hub integration
+fastapi==0.115.12        # Web framework
+uvicorn==0.34.2          # ASGI server
