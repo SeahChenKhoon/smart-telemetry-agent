@@ -336,7 +336,7 @@ def main() -> None:
     - Saves the trained model to disk
     """    
     env_variables = util.read_env()
-    config_path = env_variables["cloud_config_path"]
+    config_path = env_variables["eda_config_path"]
     config = util.load_config(config_path)
 
     # Load Data
