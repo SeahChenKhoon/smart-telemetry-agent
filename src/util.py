@@ -37,6 +37,7 @@ def read_env() -> Dict[str, str]:
         "telemetry_config_path": os.getenv("TELEMETRY_CONFIG_PATH", ""),
         "cloud_config_path": os.getenv("CLOUD_CONFIG_PATH", ""),
         "machine_config_path": os.getenv("MACHINE_CONFIG_PATH", ""),
+        "eda_config_path": os.getenv("EDA_CONFIG_PATH", ""),
 
         ## LLM Selection Flag OpenAI ot Azure OpenAI
         "llm_provider": os.getenv("LLM_PROVIDER", ""),
