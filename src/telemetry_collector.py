@@ -385,7 +385,7 @@ def main() -> None:
                 matched_rule = evaluate_diagnostics(telemetry_dict, config)
                 handle_matched_rules(matched_rule, telemetry_dict, config)
 
-            elif telemetry_outcome == CRITICAL and config["privacy"]["mode"] == "share_with_dell":
+            elif telemetry_outcome == CRITICAL and privacy_mode == "share_with_dell":
                 matched_rule = raise_issue_and_get_adviced(
                     config["cloud_api"]["verify_cert"],
                     telemetry_str,
