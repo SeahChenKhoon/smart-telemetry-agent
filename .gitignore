@@ -1,11 +1,16 @@
 # Ignore all files in doc/ by default
 doc/*
 
+# But allow doc/assets/ folder and everything inside it
+!doc/assets/
+!doc/assets/**
+
 # But allow only specific file types
 !doc/*.drawio
 !doc/*.png
 !doc/*.docx
 !doc/*.pptx
+!doc/assets/*
 
 # Still ignore unwanted files explicitly
 doc/*.bkp
