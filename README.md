@@ -79,10 +79,13 @@ Key use cases include:
 Follow these steps to set up and run the Smart Telemetry and Diagnostics System:
 
 ### 1. Clone the repository
+- Go to the folder to be installed and issue the git clone command.
 ```bash
-git clone https://github.com/your-username/smart-telemetry-agent.git
+git clone https://github.com/SeahChenKhoon/smart-telemetry-agent.git
 cd smart-telemetry-agent
 ```
+
+![Architecture Diagram](./docs/assets/01_Clone_the_repository.png)
 
 ### 2. (Optional) Set up a virtual environment
 ```bash
