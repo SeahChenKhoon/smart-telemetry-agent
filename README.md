@@ -88,7 +88,7 @@ cd smart-telemetry-agent
 
 ![Clone Repository](doc/assets/01_Clone_the_repository.png)
 
-### 2. (Optional) Set up a virtual environment
+### 2. Set up a virtual environment
 
 ```bash
 python -m venv venv
@@ -133,7 +133,7 @@ cp .env_sample .env
 | `AZURE_DEPLOYMENT_ID`     | `gpt-4.1`                                                                                   | Azure OpenAI deployment ID                   |
 | `LLM_TEMPERATURE`         | `0.2`                                                                                       | Model response creativity (0.0–1.0 scale)     |
 
-### 5. Prepare configuration files
+### 5. Prepare configuration files (Recommended to Keep Default)
 Ensure the following YAML files are configured based on your system:
 
 - `machine_config.yml` — for mock telemetry input
@@ -206,9 +206,15 @@ Ensure the following YAML files are configured based on your system:
 | random_forest.random_state           | 42                                                                                                                        |
 
 ### 6. Train the ML model (optional if already trained)
+This step is optional because a pre-trained model file (`random_forest_model.joblib`) is already included in the `cloud/` directory of this repository.
+
+However, if you'd like to retrain the model or rerun the exploratory data analysis (EDA), you can do so by executing the following command:
+
 ```
-python src/eda_transform_train_export.py
+PYTHONPATH=. python src/eda_transform_train_export.py
 ```
+
+![Train the ML model](doc/assets/05_Train_the_ML_model.png)
 
 ### 7. Start the Cloud Service (Secure API for Escalations)
 
@@ -217,20 +223,38 @@ python src/eda_transform_train_export.py
 uvicorn src.cloud_service:app --host 127.0.0.1 --port 443 --ssl-keyfile=./key.pem --ssl-certfile=./cert.pem
 ```
 
+Note: A self-signed certificate (key.pem and cert.pem) is provided for local development.
+
+🔐 However, if you have a real production HTTPS certificate, replace the provided key.pem and cert.pem with your own.
+Also, in telemetry_config.yml, set:
+
+
+```
+cloud_api:
+  verify_cert: true
+```
+
+![Start Cloud Service](doc/assets/07_Start_the_Cloud_Service.png)
 
 ### 8. Start the Edge Machine Service (Simulated Device API)
 
+- Open a new Git Bash window
 - Launch the local machine's FastAPI endpoint to simulate system-level telemetry:
 ```
 uvicorn src.machine_service:app --reload --host 127.0.0.2 --port 8000
 ```
 
-### 9. Run the Telemetry Collector (Edge Intelligence)
+![Start the Edge Machine Service](doc/assets/08_Start_the_Edge_Machine_Service.png)
 
+### 9. Run the Telemetry Collector (Edge Intelligence)
+- Open a new Git Bash window
 - Start the main telemetry collector, which retrieves simulated data and predicts outcome based on trained model:
 ```
 PYTHONPATH=. python src/telemetry_collector.py
 ```
+
+![Run the Telemetry Collector](doc/assets/09_Run_the_Telemetry_Collector.png)
+
 
 ---
 
