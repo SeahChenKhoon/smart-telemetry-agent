@@ -79,31 +79,44 @@ Key use cases include:
 Follow these steps to set up and run the Smart Telemetry and Diagnostics System:
 
 ### 1. Clone the repository
-- Go to the folder to be installed and issue the git clone command.
+Open Git Bash, navigate to your desired installation directory, and run:
+
 ```bash
 git clone https://github.com/SeahChenKhoon/smart-telemetry-agent.git
 cd smart-telemetry-agent
 ```
 
-![Architecture Diagram](./docs/assets/01_Clone_the_repository.png)
+![Clone Repository](doc/assets/01_Clone_the_repository.png)
 
 ### 2. (Optional) Set up a virtual environment
+
 ```bash
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv\\Scripts\\activate # On On macOS/Linux: source venv/bin/activate  
 ```
 
+![Set up Virtual Environment](doc/assets/02_Set_up_a_virtual_environment.png)
+
 ### 3. Install required dependencies
+This step may take a few minutes to complete.
 ```bash
 pip install -r requirements.txt
 ```
+
+![Install required dependencies](doc/assets/03_Install_required_dependencies.png)
+
 
 ### 4. Configure environment variables
 - Copy the .env_sample to .env:
 ```bash
 cp .env_sample .env
 ```
+
+![Copy env file](doc/assets/04_Copy_File.png)
+
 - Update values as needed:
+
+![Install required dependencies](doc/assets/04_Configure_environment_variables.png)
 
 | Variable                   | Value                                                                                       | Description                                  |
 |---------------------------|---------------------------------------------------------------------------------------------|----------------------------------------------|
