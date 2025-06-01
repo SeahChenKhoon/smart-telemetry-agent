@@ -10,6 +10,7 @@ doc/*
 !doc/*.png
 !doc/*.docx
 !doc/*.pptx
+!doc/*.pdf
 !doc/assets/*
 
 # Still ignore unwanted files explicitly
